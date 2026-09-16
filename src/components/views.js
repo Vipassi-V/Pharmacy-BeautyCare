@@ -602,6 +602,93 @@ export function renderQRModal(state) {
   `;
 }
 
+// End Session Confirmation Modal (Safeguard Dialog)
+export function renderEndSessionConfirmModal(state) {
+  if (!state.showEndSessionConfirmModal) return '';
+
+  const skinType = sessionStore.getSelectedSkinType();
+  const initials = (state.customer.firstName ? state.customer.firstName[0] : '') + 
+                   (state.customer.lastName ? state.customer.lastName[0] : '');
+
+  return `
+    <div class="modal-backdrop" id="endSessionConfirmBackdrop">
+      <div class="modal-dialog" style="max-width: 520px; overflow: hidden;">
+        <!-- Header -->
+        <div style="padding: 1.5rem 1.75rem 1rem; display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 44px; height: 44px; border-radius: 12px; background: #ffdad6; color: var(--error); display: flex; align-items: center; justify-content: center;">
+              <span class="material-symbols-outlined" style="font-size: 24px;">power_settings_new</span>
+            </div>
+            <div>
+              <h3 class="font-headline-sm" style="color: var(--on-surface); line-height: 1.2;">End Consultation Session?</h3>
+              <p class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.82rem;">Are you ready to finish your visit on this kiosk?</p>
+            </div>
+          </div>
+          <button class="btn-ghost" id="cancelEndSessionCloseBtn" style="min-height: 36px; padding: 0 8px;">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div style="padding: 0 1.75rem 1.75rem;">
+          <!-- Active Session Snapshot (if name entered) -->
+          ${state.customer.firstName ? `
+            <div style="background: #eff4ff; border: 1px solid #dce9ff; border-radius: var(--radius-lg); padding: 0.9rem 1rem; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 9999px; background: var(--primary-container); color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem;">
+                  ${initials || 'RP'}
+                </div>
+                <div>
+                  <div class="font-label-md" style="color: var(--on-surface); font-size: 0.95rem;">${state.customer.firstName} ${state.customer.lastName}</div>
+                  <div class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem;">
+                    ${skinType ? skinType.name : 'Skin Consultation'} • ${state.selectedConcernIds.length} Concerns
+                  </div>
+                </div>
+              </div>
+              <span style="font-size: 0.75rem; background: #ffffff; color: var(--secondary); font-weight: 600; padding: 2px 8px; border-radius: 9999px;">
+                In Progress
+              </span>
+            </div>
+          ` : ''}
+
+          <!-- Privacy Data Wipe Checklist -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-lg); padding: 1.1rem; margin-bottom: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 6px; color: var(--primary); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; margin-bottom: 0.75rem;">
+              <span class="material-symbols-outlined" style="font-size: 18px;">security</span>
+              Privacy & Data Sanitization
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.85rem; color: var(--on-surface-variant);">
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary); margin-top: 1px;">cleaning_services</span>
+                <span>Clears customer name, skin type, and selections.</span>
+              </div>
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary); margin-top: 1px;">lock_reset</span>
+                <span>Expunges temporary consultation data from this kiosk.</span>
+              </div>
+              <div style="display: flex; align-items: flex-start; gap: 8px;">
+                <span class="material-symbols-outlined" style="font-size: 16px; color: var(--primary); margin-top: 1px;">qr_code_2</span>
+                <span>If you scanned your QR code, your routine remains saved on your phone.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div style="display: flex; gap: 0.75rem;">
+            <button type="button" class="btn-ghost" id="cancelEndSessionBtn" style="flex: 1; border: 1.5px solid #cbd5e1;">
+              <span>Cancel & Return</span>
+            </button>
+            <button type="button" class="btn-primary" id="confirmEndSessionBtn" style="flex: 1.2; background: var(--error); box-shadow: 0 4px 14px rgba(186, 26, 26, 0.25);">
+              <span class="material-symbols-outlined" style="font-size: 20px;">restart_alt</span>
+              <span>Yes, End Session</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // 8. Mobile Recommendation Page (Phone View)
 export function renderMobilePage(state) {
   const skinType = sessionStore.getSelectedSkinType();

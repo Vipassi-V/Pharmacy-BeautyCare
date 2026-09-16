@@ -19,6 +19,7 @@ class SessionStore {
     this.selectedConcernIds = [];
     this.expandedConcernIds = [];
     this.showQRModal = false;
+    this.showEndSessionConfirmModal = false;
     this.isMobileView = false;
     this.sessionId = 'RP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
     this.createdAt = new Date().toISOString();
@@ -43,6 +44,7 @@ class SessionStore {
       selectedConcernIds: [...this.selectedConcernIds],
       expandedConcernIds: [...this.expandedConcernIds],
       showQRModal: this.showQRModal,
+      showEndSessionConfirmModal: this.showEndSessionConfirmModal,
       isMobileView: this.isMobileView,
       sessionId: this.sessionId,
       createdAt: this.createdAt
@@ -87,6 +89,11 @@ class SessionStore {
 
   setQRModal(isOpen) {
     this.showQRModal = isOpen;
+    this.notify();
+  }
+
+  setEndSessionConfirmModal(isOpen) {
+    this.showEndSessionConfirmModal = isOpen;
     this.notify();
   }
 

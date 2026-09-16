@@ -11,6 +11,7 @@ import {
   renderReviewScreen,
   renderRecommendationsScreen,
   renderQRModal,
+  renderEndSessionConfirmModal,
   renderMobilePage,
   renderEndSessionScreen
 } from './components/views.js';
@@ -63,6 +64,7 @@ function render() {
       ${screenContent}
     </main>
     ${renderQRModal(state)}
+    ${renderEndSessionConfirmModal(state)}
   `;
 
   // Draw QR code if modal open
@@ -111,10 +113,35 @@ function bindEvents() {
   // Global Header Nav
   document.getElementById('headerHomeBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
-    sessionStore.setStep(1);
+    if (sessionStore.getState().currentStep > 1 && sessionStore.getState().currentStep < 9) {
+      sessionStore.setEndSessionConfirmModal(true);
+    } else {
+      sessionStore.setStep(1);
+    }
   });
 
+  // End Session button opens Confirmation Modal
   document.getElementById('endSessionTopBtn')?.addEventListener('click', () => {
+    sessionStore.setEndSessionConfirmModal(true);
+  });
+
+  // End Session Confirmation Modal Handlers
+  document.getElementById('cancelEndSessionBtn')?.addEventListener('click', () => {
+    sessionStore.setEndSessionConfirmModal(false);
+  });
+
+  document.getElementById('cancelEndSessionCloseBtn')?.addEventListener('click', () => {
+    sessionStore.setEndSessionConfirmModal(false);
+  });
+
+  document.getElementById('endSessionConfirmBackdrop')?.addEventListener('click', (e) => {
+    if (e.target.id === 'endSessionConfirmBackdrop') {
+      sessionStore.setEndSessionConfirmModal(false);
+    }
+  });
+
+  document.getElementById('confirmEndSessionBtn')?.addEventListener('click', () => {
+    sessionStore.setEndSessionConfirmModal(false);
     sessionStore.setStep(9);
   });
 
