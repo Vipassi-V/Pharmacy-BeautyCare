@@ -34,3 +34,6 @@ dist-ssr
 .temp
 .cache
 /assets/
+
+
+DATABASE-PLAN.md
