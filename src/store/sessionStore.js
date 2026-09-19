@@ -116,12 +116,12 @@ class SessionStore {
     return mockSkinTypes.find(t => t.id === this.selectedSkinTypeId) || null;
   }
 
-  // Sourced from active Supabase catalog via adminStore or mock fallback
+  // Sourced strictly from active Supabase catalog
   getActiveSkinConcerns() {
     if (adminStore.skinProblems && adminStore.skinProblems.length > 0) {
-      return adminStore.skinProblems.filter(p => p.status === 'active');
+      return adminStore.skinProblems.filter(p => p.status === 'active' || p.is_active === true);
     }
-    return mockConcerns;
+    return [];
   }
 
   getSelectedConcerns() {
@@ -136,36 +136,44 @@ class SessionStore {
 
   getActiveCategories() {
     if (adminStore.categories && adminStore.categories.length > 0) {
-      return adminStore.categories.filter(c => c.status === 'active');
+      return adminStore.categories.filter(c => c.status === 'active' || c.is_active === true);
     }
-    return mockCategories;
+    return [];
   }
 
   getActiveProducts() {
     if (adminStore.products && adminStore.products.length > 0) {
-      return adminStore.products.filter(p => p.status === 'active');
+      return adminStore.products.filter(p => p.status === 'active' || p.is_active === true);
     }
-    return mockProducts;
+    return [];
   }
 
   // Get recommended products without duplicate entries across categories
+  // Matching strictly through product_skin_problems junction relationships
   getRecommendedProducts() {
     const skinType = this.selectedSkinTypeId;
     const concernIds = this.selectedConcernIds;
     const activeProducts = this.getActiveProducts();
     const activeCategories = this.getActiveCategories();
 
-    // Filter products matching selected skin type or any concern
+    // 1. Filter active products matching selected concerns or skin type
     const matched = activeProducts.filter(p => {
       const suitableConcerns = p.suitableConcerns || [];
       const suitableTypes = p.suitableSkinTypes || ['dry', 'oily', 'combination', 'sensitive', 'normal'];
       
       const matchesSkin = !skinType || suitableTypes.includes(skinType);
-      const matchesConcern = concernIds.length === 0 || suitableConcerns.some(c => concernIds.includes(c));
-      return matchesSkin || matchesConcern;
+      
+      // If customer selected specific concerns, match products mapped via product_skin_problems
+      if (concernIds.length > 0) {
+        const matchesConcern = suitableConcerns.some(c => concernIds.includes(c));
+        return matchesConcern;
+      }
+      
+      // If no concerns selected, fallback to skin-type match
+      return matchesSkin;
     });
 
-    // Group by category, ensuring every product is listed once in its assigned category
+    // 2. Group by active category, guaranteeing each product is rendered exactly once
     const grouped = {};
     activeCategories.forEach(cat => {
       grouped[cat.id] = {
@@ -174,16 +182,26 @@ class SessionStore {
       };
     });
 
+    const seenProductIds = new Set();
+
     matched.forEach(prod => {
+      if (seenProductIds.has(prod.id)) return;
+      seenProductIds.add(prod.id);
+
       const catId = prod.categoryId || prod.category_id;
       if (grouped[catId]) {
-        if (!grouped[catId].items.find(item => item.id === prod.id)) {
-          grouped[catId].items.push(prod);
-        }
+        grouped[catId].items.push(prod);
       } else {
-        // Fallback to first category if unassigned
-        const firstCatId = activeCategories[0]?.id;
-        if (firstCatId && grouped[firstCatId] && !grouped[firstCatId].items.find(item => item.id === prod.id)) {
+        // Match by finding category in active categories
+        const matchingCat = activeCategories.find(c => c.id === catId);
+        if (matchingCat) {
+          if (!grouped[matchingCat.id]) {
+            grouped[matchingCat.id] = { category: matchingCat, items: [] };
+          }
+          grouped[matchingCat.id].items.push(prod);
+        } else if (activeCategories.length > 0) {
+          // Fallback to first available category if unassigned
+          const firstCatId = activeCategories[0].id;
           grouped[firstCatId].items.push(prod);
         }
       }

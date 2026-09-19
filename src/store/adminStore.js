@@ -33,6 +33,8 @@ class AdminStore {
     this.toast = null;
     this.isDirty = false;
     this.listeners = [];
+    this.isLoadingCatalog = false;
+    this.catalogFetchError = null;
 
     // Check for an existing active Supabase session on startup
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -86,12 +88,26 @@ class AdminStore {
   }
 
   async refreshAll() {
-    await this.fetchCategories();
-    await this.fetchSkinProblems();
-    await this.fetchProducts();
-    await this.fetchSessions();
-    this.updateCounts();
+    this.isLoadingCatalog = true;
+    this.catalogFetchError = null;
     this.notify();
+
+    try {
+      await Promise.all([
+        this.fetchCategories(),
+        this.fetchSkinProblems(),
+        this.fetchProducts(),
+        this.fetchSessions()
+      ]);
+      this.catalogFetchError = null;
+    } catch (err) {
+      console.warn('Catalog refresh error:', err);
+      this.catalogFetchError = err.message || 'Connection error while loading catalog.';
+    } finally {
+      this.isLoadingCatalog = false;
+      this.updateCounts();
+      this.notify();
+    }
   }
 
   updateCounts() {

@@ -280,6 +280,10 @@ function bindKioskEvents() {
     if (e.target.id === 'qrModalBackdrop') sessionStore.setQRModal(false);
   });
 
+  document.getElementById('retryCatalogBtn')?.addEventListener('click', () => {
+    adminStore.refreshAll();
+  });
+
   document.getElementById('returnHomeBtn')?.addEventListener('click', () => sessionStore.clearSession());
 }
 

@@ -1,5 +1,6 @@
 import { pharmacyInfo, skinTypes } from '../data/mockData.js';
 import { sessionStore } from '../store/sessionStore.js';
+import { adminStore } from '../store/adminStore.js';
 import QRCode from 'qrcode';
 
 // Header Component
@@ -232,67 +233,111 @@ export function renderSkinTypeScreen(state) {
 export function renderConcernsScreen(state) {
   const count = state.selectedConcernIds.length;
   const concernsList = sessionStore.getActiveSkinConcerns();
+  const isLoading = adminStore.isLoadingCatalog;
+  const hasError = adminStore.catalogFetchError;
 
-  const cardsHtml = concernsList.map(concern => {
-    const isSelected = state.selectedConcernIds.includes(concern.id);
-    const isExpanded = state.expandedConcernIds.includes(concern.id);
+  let bodyContent = '';
 
-    return `
-      <div class="concern-card ${isSelected ? 'selected' : ''}" data-concern-id="${concern.id}">
-        <!-- Image without decorative tags -->
-        <img src="${concern.image}" alt="${concern.title}" class="concern-header-img" loading="lazy" />
-
-        <!-- Card Body (Toggles description expansion) -->
-        <div class="concern-body" data-action="toggle-expand">
-          <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
-            <h3 class="font-headline-sm" style="color: var(--on-surface); font-size: 1.15rem; line-height: 1.3;">
-              ${concern.title}
-            </h3>
-            ${concern.isSevere ? `
-              <span style="display: inline-flex; align-items: center; gap: 3px; color: var(--tertiary); background: var(--warning-wash); padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; border: 1px solid #fcd34d;">
-                <span class="material-symbols-outlined" style="font-size: 14px;">priority_high</span>
-                Severe
-              </span>
-            ` : ''}
-          </div>
-
-          <div class="font-label-sm" style="color: var(--secondary); margin-bottom: 8px;">
-            ${concern.nepaliTitle}
-          </div>
-
-          <div class="concern-description-drawer">
-            ${isExpanded ? concern.description : concern.summary}
-          </div>
-
-          <button type="button" class="expand-toggle">
-            <span>${isExpanded ? 'Show Less' : 'Read Clinical Details'}</span>
-            <span class="material-symbols-outlined" style="font-size: 18px;">
-              ${isExpanded ? 'expand_less' : 'expand_more'}
-            </span>
-          </button>
+  if (isLoading && concernsList.length === 0) {
+    bodyContent = `
+      <div style="text-align: center; padding: 4rem 1rem;">
+        <span class="material-symbols-outlined" style="font-size: 40px; color: var(--primary); animation: spin 1s linear infinite;">sync</span>
+        <div class="font-headline-sm" style="margin-top: 1rem; color: var(--on-surface);">Loading Live Catalog...</div>
+        <div class="font-body-sm" style="color: var(--on-surface-variant); margin-top: 4px;">Connecting to Ronit Pharmacy database...</div>
+      </div>
+    `;
+  } else if (hasError && concernsList.length === 0) {
+    bodyContent = `
+      <div style="text-align: center; padding: 3rem 1.5rem; background: #fff5f5; border: 1.5px solid #fed7d7; border-radius: var(--radius-xl); max-width: 520px; margin: 2rem auto;">
+        <span class="material-symbols-outlined" style="font-size: 42px; color: var(--error);">cloud_off</span>
+        <div class="font-headline-sm" style="margin-top: 0.5rem; color: var(--error);">Catalog Connection Note</div>
+        <div class="font-body-sm" style="color: var(--on-surface-variant); margin: 0.5rem 0 1.5rem;">
+          ${hasError}
         </div>
-
-        <!-- Card Footer Actions: Add / Added Toggle -->
-        <div class="concern-actions">
-          <div class="font-body-sm" style="color: var(--outline); font-size: 0.85rem;">
-            ${isSelected ? '<span style="color: var(--primary); font-weight: 600;">Selected</span>' : 'Tap Add to include'}
-          </div>
-
-          <button 
-            type="button" 
-            class="btn-add-concern ${isSelected ? 'selected' : 'unselected'}" 
-            data-action="toggle-add"
-            aria-label="${isSelected ? 'Remove' : 'Add'} ${concern.title}"
-          >
-            <span class="material-symbols-outlined" style="font-size: 18px;">
-              ${isSelected ? 'check' : 'add'}
-            </span>
-            <span>${isSelected ? 'Added' : 'Add'}</span>
-          </button>
+        <button class="btn-primary" id="retryCatalogBtn" style="padding: 0 1.5rem; margin: 0 auto;">
+          <span class="material-symbols-outlined">refresh</span>
+          <span>Retry Connection</span>
+        </button>
+      </div>
+    `;
+  } else if (concernsList.length === 0) {
+    bodyContent = `
+      <div style="text-align: center; padding: 3.5rem 1.5rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-xl); max-width: 520px; margin: 2rem auto;">
+        <span class="material-symbols-outlined" style="font-size: 42px; color: var(--outline);">spa</span>
+        <div class="font-headline-sm" style="margin-top: 0.5rem; color: var(--on-surface);">No Active Conditions Listed</div>
+        <div class="font-body-sm" style="color: var(--on-surface-variant); margin-top: 0.5rem;">
+          Our catalog currently has no active skin conditions configured. Please consult directly with the attending pharmacist at the counter.
         </div>
       </div>
     `;
-  }).join('');
+  } else {
+    const cardsHtml = concernsList.map(concern => {
+      const isSelected = state.selectedConcernIds.includes(concern.id);
+      const isExpanded = state.expandedConcernIds.includes(concern.id);
+
+      return `
+        <div class="concern-card ${isSelected ? 'selected' : ''}" data-concern-id="${concern.id}">
+          <!-- Image without decorative tags -->
+          <img src="${concern.image}" alt="${concern.title}" class="concern-header-img" loading="lazy" />
+
+          <!-- Card Body (Toggles description expansion) -->
+          <div class="concern-body" data-action="toggle-expand">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+              <h3 class="font-headline-sm" style="color: var(--on-surface); font-size: 1.15rem; line-height: 1.3;">
+                ${concern.title}
+              </h3>
+              ${concern.isSevere || concern.is_severe ? `
+                <span style="display: inline-flex; align-items: center; gap: 3px; color: var(--tertiary); background: var(--warning-wash); padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; border: 1px solid #fcd34d;">
+                  <span class="material-symbols-outlined" style="font-size: 14px;">priority_high</span>
+                  Severe
+                </span>
+              ` : ''}
+            </div>
+
+            <div class="font-label-sm" style="color: var(--secondary); margin-bottom: 8px;">
+              ${concern.nepaliTitle || ''}
+            </div>
+
+            <div class="concern-description-drawer">
+              ${isExpanded ? concern.description : (concern.summary || concern.description)}
+            </div>
+
+            <button type="button" class="expand-toggle">
+              <span>${isExpanded ? 'Show Less' : 'Read Clinical Details'}</span>
+              <span class="material-symbols-outlined" style="font-size: 18px;">
+                ${isExpanded ? 'expand_less' : 'expand_more'}
+              </span>
+            </button>
+          </div>
+
+          <!-- Card Footer Actions: Add / Added Toggle -->
+          <div class="concern-actions">
+            <div class="font-body-sm" style="color: var(--outline); font-size: 0.85rem;">
+              ${isSelected ? '<span style="color: var(--primary); font-weight: 600;">Selected</span>' : 'Tap Add to include'}
+            </div>
+
+            <button 
+              type="button" 
+              class="btn-add-concern ${isSelected ? 'selected' : 'unselected'}" 
+              data-action="toggle-add"
+              aria-label="${isSelected ? 'Remove' : 'Add'} ${concern.title}"
+            >
+              <span class="material-symbols-outlined" style="font-size: 18px;">
+                ${isSelected ? 'check' : 'add'}
+              </span>
+              <span>${isSelected ? 'Added' : 'Add'}</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    bodyContent = `
+      <div class="selection-grid selection-grid-2">
+        ${cardsHtml}
+      </div>
+    `;
+  }
 
   return `
     <div class="kiosk-container" style="padding-top: 1rem; padding-bottom: 6.5rem;">
@@ -305,9 +350,7 @@ export function renderConcernsScreen(state) {
         </p>
       </div>
 
-      <div class="selection-grid selection-grid-2">
-        ${cardsHtml}
-      </div>
+      ${bodyContent}
     </div>
 
     <!-- Floating Bottom Selection Tray -->
