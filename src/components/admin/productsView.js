@@ -14,45 +14,45 @@ export function renderProductsView() {
     }).join('');
 
     return `
-      <tr style="border-bottom: 1px solid #e2e8f0; height: 80px;">
-        <td style="padding: 0 1rem; font-weight: 700; color: var(--outline); font-size: 0.85rem; width: 40px;">
+      <tr>
+        <td style="font-weight: 700; color: var(--outline); font-size: 0.85rem; width: 40px;">
           #${idx + 1}
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${prod.image || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'}" alt="${prod.name}" style="width: 52px; height: 52px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0;" />
+            <img src="${prod.image || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'}" alt="${prod.name}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />
             <div>
               <div style="font-size: 0.75rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;">${prod.brand}</div>
               <div style="font-weight: 700; color: var(--on-surface); font-size: 0.95rem; line-height: 1.25;">${prod.name}</div>
-              <div style="font-size: 0.78rem; color: var(--outline); margin-top: 2px;">
+              <div style="font-size: 0.75rem; color: var(--outline); margin-top: 2px;">
                 ${(prod.badges || []).join(' • ')}
               </div>
             </div>
           </div>
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <span style="font-size: 0.8rem; background: #f0fdf4; color: var(--primary-container); font-weight: 600; padding: 3px 8px; border-radius: 9999px;">
             ${categoryName}
           </span>
         </td>
-        <td style="padding: 0 1rem;">
-          <div style="font-weight: 700; color: var(--primary); font-size: 1rem;">
+        <td>
+          <div style="font-weight: 700; color: var(--primary); font-size: 0.95rem;">
             Rs. ${(prod.price || 0).toLocaleString()}
           </div>
           <div style="font-size: 0.72rem; color: var(--outline);">NPR In-Store</div>
         </td>
-        <td style="padding: 0 1rem; max-width: 180px;">
+        <td style="max-width: 180px;">
           <div style="display: flex; flex-wrap: wrap; gap: 2px;">
             ${linkedConcernsHtml || '<span style="font-size: 0.75rem; color: var(--outline);">All skin types</span>'}
           </div>
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: ${isActive ? '#f0fdf4' : '#f1f5f9'}; color: ${isActive ? 'var(--primary)' : 'var(--outline)'};">
             <span class="material-symbols-outlined" style="font-size: 14px;">${isActive ? 'check_circle' : 'do_not_disturb_on'}</span>
             ${isActive ? 'Active' : 'Inactive'}
           </span>
         </td>
-        <td style="padding: 0 1rem; text-align: right;">
+        <td style="text-align: right;">
           <div style="display: inline-flex; gap: 6px;">
             <button class="btn-ghost edit-prod-btn" data-prod-id="${prod.id}" title="Edit Product" style="padding: 6px; min-height: 36px; color: var(--primary);">
               <span class="material-symbols-outlined" style="font-size: 20px;">edit</span>
@@ -72,7 +72,7 @@ export function renderProductsView() {
   return `
     <div>
       <!-- Header -->
-      <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+      <div style="margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
         <div>
           <h1 class="font-headline-md" style="color: var(--on-surface);">Product Catalog & Recommendations</h1>
           <p class="font-body-sm" style="color: var(--on-surface-variant);">
@@ -80,12 +80,12 @@ export function renderProductsView() {
           </p>
         </div>
 
-        <div style="display: flex; gap: 0.75rem;">
-          <button class="btn-secondary" id="openImportWorkflowBtn" style="min-height: 48px; font-size: 0.95rem;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <button class="btn-secondary" id="openImportWorkflowBtn" style="min-height: 46px; font-size: 0.95rem;">
             <span class="material-symbols-outlined">upload_file</span>
             <span>Excel / CSV Import</span>
           </button>
-          <button class="btn-primary" id="openAddProductModalBtn" style="min-height: 48px; font-size: 0.95rem;">
+          <button class="btn-primary" id="openAddProductModalBtn" style="min-height: 46px; font-size: 0.95rem;">
             <span class="material-symbols-outlined">add</span>
             <span>Add New Product</span>
           </button>
@@ -93,17 +93,17 @@ export function renderProductsView() {
       </div>
 
       <!-- Products Table -->
-      <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+      <div class="table-responsive-wrapper">
+        <table class="admin-data-table">
           <thead>
-            <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; height: 48px;">
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">#</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Product & Brand</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Category</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Price</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Linked Problems</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Status</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700; text-align: right;">Actions</th>
+            <tr>
+              <th>#</th>
+              <th>Product & Brand</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Linked Problems</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -131,14 +131,14 @@ export function renderProductModal(product = null) {
 
   return `
     <div class="modal-backdrop" id="productFormModalBackdrop">
-      <div class="modal-dialog" style="max-width: 960px; max-height: 92vh; overflow-y: auto;">
+      <div class="modal-dialog" style="max-width: 960px;">
         <!-- Header -->
-        <div style="padding: 1.25rem 1.75rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #ffffff; z-index: 20;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #ffffff; z-index: 20;">
           <div>
-            <h3 class="font-headline-sm" style="color: var(--on-surface);">
+            <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">
               ${isEdit ? 'Edit Clinical Product' : 'Add New Product & Live Preview'}
             </h3>
-            <p class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem;">
+            <p class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem; margin: 0;">
               See how this card renders on customer tablet kiosks in real time as you fill the fields.
             </p>
           </div>
@@ -147,7 +147,7 @@ export function renderProductModal(product = null) {
           </button>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1.5rem; padding: 1.5rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; padding: 1.5rem; overflow-y: auto;">
           <!-- Left: Input Form -->
           <form id="productModalForm">
             <input type="hidden" id="prodFormId" value="${product ? product.id : ''}" />
@@ -155,12 +155,12 @@ export function renderProductModal(product = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
                 <label class="form-label" for="prodFormBrand">Brand Name <span style="color: var(--error);">*</span></label>
-                <input type="text" id="prodFormBrand" class="form-input" placeholder="e.g. CeraVe, The Ordinary, La Roche-Posay" value="${product ? product.brand : ''}" required />
+                <input type="text" id="prodFormBrand" class="form-input" placeholder="e.g. CeraVe, The Ordinary" value="${product ? product.brand : ''}" required />
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="prodFormCategory">Assigned Category <span style="color: var(--error);">*</span></label>
-                <select id="prodFormCategory" class="form-input" style="height: 56px;" required>
+                <select id="prodFormCategory" class="form-input" style="height: 52px;" required>
                   ${categories.map(c => `
                     <option value="${c.id}" ${product && product.categoryId === c.id ? 'selected' : ''}>${c.name}</option>
                   `).join('')}
@@ -181,17 +181,26 @@ export function renderProductModal(product = null) {
 
               <div class="form-group">
                 <label class="form-label" for="prodFormBadges">Badges / Highlights (comma separated)</label>
-                <input type="text" id="prodFormBadges" class="form-input" placeholder="SPF 50+, Ceramide 3, Fragrance Free" value="${product ? (product.badges || []).join(', ') : 'Hypoallergenic, Fragrance Free'}" />
+                <input type="text" id="prodFormBadges" class="form-input" placeholder="SPF 50+, Ceramide 3" value="${product ? (product.badges || []).join(', ') : 'Hypoallergenic, Fragrance Free'}" />
               </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="prodFormImage">Image URL</label>
-              <div style="display: flex; gap: 8px;">
+              <label class="form-label" for="prodFormImage">Product Image (Supabase Storage / URL)</label>
+              <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
                 <input type="url" id="prodFormImage" class="form-input" placeholder="https://..." value="${defaultImg}" style="flex: 1;" />
-                <button type="button" class="btn-secondary" id="prodImageSampleBtn" style="min-height: 56px; padding: 0 1rem; font-size: 0.85rem;">
+                <input type="file" id="prodFileInput" accept="image/*" style="display: none;" />
+                <button type="button" class="btn-secondary" id="prodUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                  <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
+                  <span>Upload</span>
+                </button>
+                <button type="button" class="btn-ghost" id="prodImageSampleBtn" style="min-height: 52px; padding: 0 0.75rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1;">
                   Sample
                 </button>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--outline);">
+                <span>Upload to Supabase Storage bucket <code>product-images</code> or paste external URL</span>
+                <button type="button" id="prodClearImageBtn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.75rem; padding: 0;">Remove Image</button>
               </div>
             </div>
 
@@ -233,7 +242,7 @@ export function renderProductModal(product = null) {
             </div>
 
             <div class="product-card" id="liveCardSimulator" style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-level-1);">
-              <img id="simCardImg" src="${defaultImg}" alt="Preview" style="width: 100%; height: 160px; object-fit: cover; background: #f1f5f9;" />
+              <img id="simCardImg" src="${defaultImg}" alt="Preview" style="width: 100%; aspect-ratio: 4 / 3; max-height: 180px; object-fit: cover; background: #f1f5f9;" />
               <div style="padding: 1rem; display: flex; flex-direction: column; gap: 6px;">
                 <div id="simCardBrand" class="font-label-sm" style="color: var(--secondary); text-transform: uppercase;">
                   ${product ? product.brand : 'BRAND NAME'}

@@ -295,22 +295,55 @@ function bindMobileEvents() {
 
 // --- Admin Login Event Bindings ---
 function bindAdminLoginEvents() {
-  document.getElementById('adminLoginForm')?.addEventListener('submit', (e) => {
+  const form = document.getElementById('adminLoginForm');
+  const submitBtn = form?.querySelector('button[type="submit"]');
+
+  form?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const email = document.getElementById('adminEmailInput')?.value?.trim();
     const pwd = document.getElementById('adminPasswordInput').value;
-    const success = adminStore.login(pwd);
-    if (!success) {
-      document.getElementById('app').innerHTML = renderAdminLogin('Invalid pharmacist PIN / password. Try "admin123"');
+
+    // Show loading state
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span><span>Authenticating...</span>';
+    }
+
+    const result = await adminStore.login(pwd, email);
+
+    if (!result.success) {
+      document.getElementById('app').innerHTML = renderAdminLogin(
+        result.error || 'Authentication failed. Please check your credentials.'
+      );
       bindAdminLoginEvents();
     }
+    // On success, adminStore.notify() triggers render() automatically via subscription
   });
 }
 
 // --- Admin Portal Event Bindings ---
 function bindAdminEvents() {
-  // Navigation
+  // Hamburger / Sidebar toggle (mobile & tablet)
+  const hamburgerBtn = document.getElementById('adminHamburgerBtn');
+  const sidebar = document.getElementById('adminSidebar');
+  const backdrop = document.getElementById('adminSidebarBackdrop');
+
+  function openSidebar() {
+    sidebar?.classList.add('mobile-open');
+    backdrop?.classList.add('active');
+  }
+  function closeSidebar() {
+    sidebar?.classList.remove('mobile-open');
+    backdrop?.classList.remove('active');
+  }
+
+  hamburgerBtn?.addEventListener('click', openSidebar);
+  backdrop?.addEventListener('click', closeSidebar);
+
+  // Close sidebar on nav item click (mobile)
   document.querySelectorAll('.admin-nav-item[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
+      closeSidebar();
       const tab = btn.getAttribute('data-tab');
       adminStore.setTab(tab);
     });
@@ -389,9 +422,23 @@ function bindAdminEvents() {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-cat-id');
       const cat = adminStore.categories.find(c => c.id === id);
+      const validation = adminStore.canDeleteCategory(id);
+
+      if (!validation.canDelete) {
+        adminStore.openModal('unsaved', {
+          title: 'Cannot Delete Category',
+          message: `Category "${cat ? cat.name : id}" cannot be deleted because ${validation.count} active product(s) still reference it (${validation.productNames.slice(0, 3).join(', ')}${validation.count > 3 ? '...' : ''}). Please reassign, deactivate, or delete those products first.`,
+          actionLabel: 'Understood',
+          onConfirm: () => {
+            adminStore.closeModal();
+          }
+        });
+        return;
+      }
+
       adminStore.openModal('delete', {
         title: 'Delete Category Permanently?',
-        message: 'This will permanently remove the category. Products assigned to it must be reassigned.',
+        message: 'This will permanently remove the category from the database.',
         itemName: cat ? cat.name : id,
         onConfirm: () => {
           adminStore.deleteCategory(id);
@@ -515,6 +562,37 @@ function bindAdminEvents() {
     activeEditingItem = null;
     render();
   });
+
+  // Skin Problem Image Upload & Samples
+  document.getElementById('probUploadFileBtn')?.addEventListener('click', () => {
+    document.getElementById('probFileInput')?.click();
+  });
+
+  document.getElementById('probFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const uploadBtn = document.getElementById('probUploadFileBtn');
+    if (uploadBtn) {
+      uploadBtn.disabled = true;
+      uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Uploading...</span>';
+    }
+    const res = await adminStore.uploadAssetImage(file, 'problems');
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span><span>Upload</span>';
+    }
+    if (res.publicUrl) {
+      const urlInput = document.getElementById('probFormImageUrl');
+      if (urlInput) urlInput.value = res.publicUrl;
+      adminStore.showToast('Condition image uploaded to Supabase Storage!');
+    }
+  });
+
+  document.getElementById('probClearImageBtn')?.addEventListener('click', () => {
+    const urlInput = document.getElementById('probFormImageUrl');
+    if (urlInput) urlInput.value = '';
+  });
+
   document.getElementById('probImageSampleBtn')?.addEventListener('click', () => {
     const samples = [
       "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=600&q=80",
@@ -581,7 +659,7 @@ function bindAdminEvents() {
     });
   });
 
-  // Live Preview Listeners inside Product Modal
+  // Live Preview & Storage Upload Listeners inside Product Modal
   if (activeEditingItem && activeEditingItem.type === 'product') {
     const bindLivePreview = () => {
       const brandVal = document.getElementById('prodFormBrand')?.value || 'BRAND NAME';
@@ -605,6 +683,41 @@ function bindAdminEvents() {
 
     ['prodFormBrand', 'prodFormName', 'prodFormPrice', 'prodFormInstruction', 'prodFormImage'].forEach(id => {
       document.getElementById(id)?.addEventListener('input', bindLivePreview);
+    });
+
+    document.getElementById('prodUploadFileBtn')?.addEventListener('click', () => {
+      document.getElementById('prodFileInput')?.click();
+    });
+
+    document.getElementById('prodFileInput')?.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const uploadBtn = document.getElementById('prodUploadFileBtn');
+      if (uploadBtn) {
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Uploading...</span>';
+      }
+      const res = await adminStore.uploadAssetImage(file, 'products');
+      if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span><span>Upload</span>';
+      }
+      if (res.publicUrl) {
+        const urlInput = document.getElementById('prodFormImage');
+        if (urlInput) {
+          urlInput.value = res.publicUrl;
+          bindLivePreview();
+        }
+        adminStore.showToast('Product image uploaded to Supabase Storage!');
+      }
+    });
+
+    document.getElementById('prodClearImageBtn')?.addEventListener('click', () => {
+      const urlInput = document.getElementById('prodFormImage');
+      if (urlInput) {
+        urlInput.value = '';
+        bindLivePreview();
+      }
     });
 
     document.getElementById('prodImageSampleBtn')?.addEventListener('click', () => {
@@ -739,7 +852,7 @@ function bindAdminEvents() {
     });
   });
 
-  document.getElementById('adminSettingsForm')?.addEventListener('submit', (e) => {
+  document.getElementById('adminSettingsForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pharmacyName = document.getElementById('settingPharmacyName').value;
     const leadPharmacist = document.getElementById('settingLeadPharmacist').value;
@@ -753,11 +866,10 @@ function bindAdminEvents() {
     const enableOfflineSync = document.getElementById('settingOfflineSync').checked;
 
     // Check password change if provided
-    const oldPwd = document.getElementById('settingCurrentPassword').value;
-    const newPwd = document.getElementById('settingNewPassword').value;
+    const newPwd = document.getElementById('settingNewPassword')?.value;
 
-    if (oldPwd || newPwd) {
-      const pwdRes = adminStore.changePassword(oldPwd, newPwd);
+    if (newPwd) {
+      const pwdRes = await adminStore.changePassword(newPwd);
       if (!pwdRes.success) {
         adminStore.showToast(pwdRes.message, 'error');
         return;
@@ -833,7 +945,13 @@ function handleImportFile(file) {
 
 // Subscriptions
 sessionStore.subscribe(() => render());
-adminStore.subscribe(() => render());
+adminStore.subscribe(() => {
+  // If the user is currently editing inside a modal, do not wipe out their active form inputs
+  if (activeEditingItem && document.querySelector('#categoryModalForm, #problemModalForm, #productModalForm')) {
+    return;
+  }
+  render();
+});
 
 window.addEventListener('DOMContentLoaded', () => {
   render();

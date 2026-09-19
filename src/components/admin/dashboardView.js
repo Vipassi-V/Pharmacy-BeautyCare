@@ -8,12 +8,11 @@ export function renderDashboardView() {
   const activeProducts = products.filter(p => p.status === 'active').length;
   const totalConcerns = skinProblems.length;
   const severeConcerns = skinProblems.filter(p => p.isSevere).length;
-  const totalSessions = sessions.length;
 
   return `
     <div>
       <!-- Page Title -->
-      <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+      <div style="margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
         <div>
           <h1 class="font-headline-md" style="color: var(--on-surface);">Pharmacist Dashboard</h1>
           <p class="font-body-sm" style="color: var(--on-surface-variant);">
@@ -21,7 +20,7 @@ export function renderDashboardView() {
           </p>
         </div>
 
-        <div style="display: flex; gap: 0.75rem;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
           <button class="btn-secondary" id="dashAddProductBtn" style="min-height: 44px; font-size: 0.9rem; padding: 0 1rem;">
             <span class="material-symbols-outlined" style="font-size: 18px;">add</span>
             <span>Add Product</span>
@@ -34,8 +33,8 @@ export function renderDashboardView() {
       </div>
 
       <!-- KPI Grid -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
-        <div style="background: #ffffff; padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem; margin-bottom: 2rem;">
+        <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
             <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">Active Products</span>
             <div style="width: 38px; height: 38px; border-radius: 10px; background: #eff4ff; color: var(--secondary); display: flex; align-items: center; justify-content: center;">
@@ -43,12 +42,12 @@ export function renderDashboardView() {
             </div>
           </div>
           <div class="font-headline-lg" style="color: var(--on-surface); margin-bottom: 0.25rem;">
-            ${activeProducts} <span style="font-size: 0.9rem; color: var(--outline); font-weight: 400;">/ ${totalProducts} total</span>
+            ${activeProducts} <span style="font-size: 0.9rem; color: var(--outline); font-weight: 400;">/ ${totalProducts}</span>
           </div>
           <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">Across ${categories.length} Categories</div>
         </div>
 
-        <div style="background: #ffffff; padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
+        <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
             <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">Skin Problems</span>
             <div style="width: 38px; height: 38px; border-radius: 10px; background: #f0fdf4; color: var(--primary-container); display: flex; align-items: center; justify-content: center;">
@@ -61,7 +60,7 @@ export function renderDashboardView() {
           <div style="font-size: 0.8rem; color: var(--tertiary); font-weight: 600;">${severeConcerns} Severe Safeguards</div>
         </div>
 
-        <div style="background: #ffffff; padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
+        <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
             <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">7-Day Consultations</span>
             <div style="width: 38px; height: 38px; border-radius: 10px; background: #fef3c7; color: var(--tertiary); display: flex; align-items: center; justify-content: center;">
@@ -71,10 +70,10 @@ export function renderDashboardView() {
           <div class="font-headline-lg" style="color: var(--on-surface); margin-bottom: 0.25rem;">
             168
           </div>
-          <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">+24% vs previous week</div>
+          <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">+24% vs last week</div>
         </div>
 
-        <div style="background: #ffffff; padding: 1.5rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
+        <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
             <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">Altitude Warning Rate</span>
             <div style="width: 38px; height: 38px; border-radius: 10px; background: #fee2e2; color: var(--error); display: flex; align-items: center; justify-content: center;">
@@ -84,20 +83,20 @@ export function renderDashboardView() {
           <div class="font-headline-lg" style="color: var(--on-surface); margin-bottom: 0.25rem;">
             28%
           </div>
-          <div style="font-size: 0.8rem; color: var(--on-surface-variant);">Flagged for counter check</div>
+          <div style="font-size: 0.8rem; color: var(--on-surface-variant);">Prompted for counter check</div>
         </div>
       </div>
 
       <!-- Split Analytics Grid: 7-Day Concerns & Recent Activity -->
-      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 1.5rem;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem;">
         <!-- Left: Most Selected Concerns from the Last 7 Days -->
-        <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; padding: 1.75rem; box-shadow: var(--shadow-level-1);">
+        <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
             <div>
-              <h3 class="font-headline-sm" style="color: var(--on-surface);">
+              <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">
                 Most Selected Concerns (Last 7 Days)
               </h3>
-              <p class="font-body-sm" style="color: var(--on-surface-variant);">
+              <p class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem; margin: 0;">
                 Aggregated patient queries recorded across Palpa kiosk terminals.
               </p>
             </div>
@@ -129,11 +128,11 @@ export function renderDashboardView() {
         </div>
 
         <!-- Right: Recent Session Records Snapshot -->
-        <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; padding: 1.75rem; box-shadow: var(--shadow-level-1);">
+        <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; padding: 1.5rem; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
             <div>
-              <h3 class="font-headline-sm" style="color: var(--on-surface);">Recent Patient Sessions</h3>
-              <p class="font-body-sm" style="color: var(--on-surface-variant);">Live terminal activity</p>
+              <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">Recent Patient Sessions</h3>
+              <p class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem; margin: 0;">Live terminal activity</p>
             </div>
             <button class="btn-ghost" id="dashSeeAllSessionsBtn" style="font-size: 0.85rem; padding: 0 8px;">
               See All
@@ -144,7 +143,7 @@ export function renderDashboardView() {
             ${sessions.slice(0, 5).map(s => `
               <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid #f1f5f9;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                  <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--primary-container); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700;">
+                  <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--primary-container); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">
                     ${s.customerName.split(' ').map(w => w[0]).join('')}
                   </div>
                   <div>

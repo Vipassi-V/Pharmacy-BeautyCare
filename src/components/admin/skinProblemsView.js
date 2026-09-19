@@ -8,24 +8,24 @@ export function renderSkinProblemsView() {
     const isSevere = !!prob.isSevere;
 
     return `
-      <tr style="border-bottom: 1px solid #e2e8f0; height: 72px;">
-        <td style="padding: 0 1rem; font-weight: 700; color: var(--outline); font-size: 0.85rem; width: 40px;">
+      <tr>
+        <td style="font-weight: 700; color: var(--outline); font-size: 0.85rem; width: 40px;">
           #${idx + 1}
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${prob.image || 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=120&q=80'}" alt="${prob.title}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0;" />
+            <img src="${prob.image || 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=120&q=80'}" alt="${prob.title}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />
             <div>
               <div style="font-weight: 700; color: var(--on-surface); font-size: 0.95rem;">${prob.title}</div>
               <div style="font-size: 0.8rem; color: var(--secondary);">${prob.nepaliTitle || ''}</div>
             </div>
           </div>
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <button 
             class="toggle-severe-btn" 
             data-prob-id="${prob.id}" 
-            title="Click to toggle severe clinical condition flag"
+            title="Click to toggle severe clinical advisory"
             style="border: none; background: none; cursor: pointer; padding: 0;"
           >
             ${isSevere ? `
@@ -40,16 +40,16 @@ export function renderSkinProblemsView() {
             `}
           </button>
         </td>
-        <td style="padding: 0 1rem; font-size: 0.88rem; color: var(--on-surface-variant);">
-          ${prob.linkedCount || 0} active products
+        <td style="font-size: 0.88rem; color: var(--on-surface-variant);">
+          ${prob.linkedCount || 0} linked products
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: ${isActive ? '#f0fdf4' : '#f1f5f9'}; color: ${isActive ? 'var(--primary)' : 'var(--outline)'};">
             <span class="material-symbols-outlined" style="font-size: 14px;">${isActive ? 'check_circle' : 'do_not_disturb_on'}</span>
             ${isActive ? 'Active' : 'Inactive'}
           </span>
         </td>
-        <td style="padding: 0 1rem; text-align: right;">
+        <td style="text-align: right;">
           <div style="display: inline-flex; gap: 6px;">
             <button class="btn-ghost edit-prob-btn" data-prob-id="${prob.id}" title="Edit Problem" style="padding: 6px; min-height: 36px; color: var(--primary);">
               <span class="material-symbols-outlined" style="font-size: 20px;">edit</span>
@@ -69,7 +69,7 @@ export function renderSkinProblemsView() {
   return `
     <div>
       <!-- Header -->
-      <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+      <div style="margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
         <div>
           <h1 class="font-headline-md" style="color: var(--on-surface);">Skin Problems & Conditions</h1>
           <p class="font-body-sm" style="color: var(--on-surface-variant);">
@@ -77,23 +77,23 @@ export function renderSkinProblemsView() {
           </p>
         </div>
 
-        <button class="btn-primary" id="openAddProblemModalBtn" style="min-height: 48px; font-size: 0.95rem;">
+        <button class="btn-primary" id="openAddProblemModalBtn" style="min-height: 46px; font-size: 0.95rem;">
           <span class="material-symbols-outlined">add</span>
           <span>Add Skin Problem</span>
         </button>
       </div>
 
       <!-- Table -->
-      <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+      <div class="table-responsive-wrapper">
+        <table class="admin-data-table">
           <thead>
-            <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; height: 48px;">
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">#</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Condition Details</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Clinical Severity</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Linked Products</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Status</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700; text-align: right;">Actions</th>
+            <tr>
+              <th>#</th>
+              <th>Condition Details</th>
+              <th>Clinical Severity</th>
+              <th>Linked Products</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -118,9 +118,9 @@ export function renderSkinProblemModal(problem = null) {
 
   return `
     <div class="modal-backdrop" id="problemFormModalBackdrop">
-      <div class="modal-dialog" style="max-width: 640px; max-height: 90vh; overflow-y: auto;">
-        <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: #ffffff; z-index: 10;">
-          <h3 class="font-headline-sm" style="color: var(--on-surface);">
+      <div class="modal-dialog" style="max-width: 620px;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+          <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">
             ${isEdit ? 'Edit Skin Problem' : 'Add New Skin Problem'}
           </h3>
           <button class="btn-ghost" id="closeProblemModalBtn" style="padding: 6px; min-height: 36px;">
@@ -128,7 +128,7 @@ export function renderSkinProblemModal(problem = null) {
           </button>
         </div>
 
-        <form id="problemModalForm" style="padding: 1.5rem;">
+        <form id="problemModalForm" style="padding: 1.5rem; overflow-y: auto;">
           <input type="hidden" id="probFormId" value="${problem ? problem.id : ''}" />
 
           <div class="form-group">
@@ -142,37 +142,44 @@ export function renderSkinProblemModal(problem = null) {
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="probFormImageUrl">Image URL (or upload)</label>
-            <div style="display: flex; gap: 8px;">
+            <label class="form-label" for="probFormImageUrl">Condition Image (Supabase Storage / URL)</label>
+            <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
               <input type="url" id="probFormImageUrl" class="form-input" placeholder="https://..." value="${problem ? problem.image || '' : ''}" style="flex: 1;" />
-              <button type="button" class="btn-secondary" id="probImageSampleBtn" style="min-height: 56px; padding: 0 1rem; font-size: 0.85rem;">
+              <input type="file" id="probFileInput" accept="image/*" style="display: none;" />
+              <button type="button" class="btn-secondary" id="probUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
+                <span>Upload</span>
+              </button>
+              <button type="button" class="btn-ghost" id="probImageSampleBtn" style="min-height: 52px; padding: 0 0.75rem; font-size: 0.85rem; border: 1.5px solid #cbd5e1;">
                 Sample
               </button>
             </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--outline);">
+              <span>Upload to Supabase Storage bucket <code>product-images</code> or paste external URL</span>
+              <button type="button" id="probClearImageBtn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.75rem; padding: 0;">Remove Image</button>
+            </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="probFormSummary">Short Summary (Shown on Kiosk tile) <span style="color: var(--error);">*</span></label>
-            <input type="text" id="probFormSummary" class="form-input" placeholder="Brief 1-2 sentence description" value="${problem ? problem.summary : ''}" required />
+            <label class="form-label" for="probFormSummary">Short Summary (Shown on Kiosk Card)</label>
+            <textarea id="probFormSummary" class="form-input" rows="2" style="height: auto; padding: 10px;" required>${problem ? problem.summary || '' : ''}</textarea>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="probFormDescription">Full Clinical Details (Shown when expanded) <span style="color: var(--error);">*</span></label>
-            <textarea id="probFormDescription" class="form-input" rows="4" style="height: auto; padding: 12px;" required placeholder="Detailed clinical etiology, active ingredient targets, and precautions...">${problem ? problem.description : ''}</textarea>
+            <label class="form-label" for="probFormDescription">Full Clinical Description (Expanded details)</label>
+            <textarea id="probFormDescription" class="form-input" rows="3" style="height: auto; padding: 10px;" required>${problem ? problem.description || '' : ''}</textarea>
           </div>
 
-          <!-- Severe Condition Switch -->
-          <div style="background: var(--warning-wash-light); border: 1px solid #fcd34d; border-radius: var(--radius-lg); padding: 1rem; margin-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: flex-start; gap: 10px;">
-              <span class="material-symbols-outlined" style="color: var(--tertiary); font-size: 24px; margin-top: 2px;">warning</span>
+          <div class="form-group" style="margin-top: 0.5rem;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+              <input type="checkbox" id="probFormIsSevere" ${problem && problem.isSevere ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--tertiary);" />
               <div>
-                <div class="font-label-md" style="color: var(--tertiary);">Mark as Severe Clinical Condition</div>
-                <div class="font-body-sm" style="color: #78350f; font-size: 0.8rem;">
-                  Triggers the amber Pharmacist Consultation Advisory banner on the customer recommendations page.
+                <span class="font-label-md" style="color: var(--tertiary);">Flag as Severe Condition (Trigger Pharmacist Advisory)</span>
+                <div class="font-body-sm" style="color: var(--outline); font-size: 0.78rem;">
+                  Displays prominent amber consultation banner to caution patient against harsh active ingredients.
                 </div>
               </div>
-            </div>
-            <input type="checkbox" id="probFormIsSevere" ${problem && problem.isSevere ? 'checked' : ''} style="width: 22px; height: 22px; accent-color: var(--tertiary-container); cursor: pointer;" />
+            </label>
           </div>
 
           <div style="display: flex; gap: 0.75rem; margin-top: 1.75rem;">

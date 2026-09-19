@@ -6,13 +6,13 @@ export function renderCategoriesView() {
   const rowsHtml = categories.map((cat, idx) => {
     const isActive = cat.status === 'active';
     return `
-      <tr style="border-bottom: 1px solid #e2e8f0; height: 60px;">
-        <td style="padding: 0 1rem; font-weight: 700; color: var(--outline); font-size: 0.85rem; width: 50px;">
+      <tr>
+        <td style="font-weight: 700; color: var(--outline); font-size: 0.85rem; width: 48px;">
           #${idx + 1}
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 36px; height: 36px; border-radius: 8px; background: #eff4ff; color: var(--secondary); display: flex; align-items: center; justify-content: center;">
+            <div style="width: 36px; height: 36px; border-radius: 8px; background: #eff4ff; color: var(--secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
               <span class="material-symbols-outlined" style="font-size: 20px;">${cat.icon || 'category'}</span>
             </div>
             <div>
@@ -21,16 +21,16 @@ export function renderCategoriesView() {
             </div>
           </div>
         </td>
-        <td style="padding: 0 1rem; font-size: 0.9rem; color: var(--on-surface-variant);">
+        <td style="font-size: 0.9rem; color: var(--on-surface-variant);">
           ${cat.productCount || 0} active products
         </td>
-        <td style="padding: 0 1rem;">
+        <td>
           <span style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; background: ${isActive ? '#f0fdf4' : '#f1f5f9'}; color: ${isActive ? 'var(--primary)' : 'var(--outline)'};">
             <span class="material-symbols-outlined" style="font-size: 14px;">${isActive ? 'check_circle' : 'do_not_disturb_on'}</span>
             ${isActive ? 'Active' : 'Inactive'}
           </span>
         </td>
-        <td style="padding: 0 1rem; text-align: right;">
+        <td style="text-align: right;">
           <div style="display: inline-flex; gap: 6px;">
             <button class="btn-ghost edit-cat-btn" data-cat-id="${cat.id}" title="Edit Category" style="padding: 6px; min-height: 36px; color: var(--primary);">
               <span class="material-symbols-outlined" style="font-size: 20px;">edit</span>
@@ -50,7 +50,7 @@ export function renderCategoriesView() {
   return `
     <div>
       <!-- Header -->
-      <div style="margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between;">
+      <div style="margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem;">
         <div>
           <h1 class="font-headline-md" style="color: var(--on-surface);">Product Categories</h1>
           <p class="font-body-sm" style="color: var(--on-surface-variant);">
@@ -58,30 +58,30 @@ export function renderCategoriesView() {
           </p>
         </div>
 
-        <button class="btn-primary" id="openAddCategoryModalBtn" style="min-height: 48px; font-size: 0.95rem;">
+        <button class="btn-primary" id="openAddCategoryModalBtn" style="min-height: 46px; font-size: 0.95rem;">
           <span class="material-symbols-outlined">add</span>
           <span>Add New Category</span>
         </button>
       </div>
 
       <!-- Categories Table Container -->
-      <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1); overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+      <div class="table-responsive-wrapper">
+        <table class="admin-data-table">
           <thead>
-            <tr style="background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; height: 48px;">
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">#</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Category Name</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Products Linked</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700;">Status</th>
-              <th style="padding: 0 1rem; font-size: 0.78rem; color: var(--on-surface-variant); text-transform: uppercase; font-weight: 700; text-align: right;">Actions</th>
+            <tr>
+              <th>#</th>
+              <th>Category Name</th>
+              <th>Products Linked</th>
+              <th>Status</th>
+              <th style="text-align: right;">Actions</th>
             </tr>
           </thead>
           <tbody>
             ${categories.length > 0 ? rowsHtml : `
               <tr>
                 <td colspan="5" style="padding: 3rem; text-align: center; color: var(--outline);">
-                  <div style="width: 56px; height: 56px; border-radius: 50%; background: #eff4ff; color: var(--secondary); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;">
-                    <span class="material-symbols-outlined" style="font-size: 28px;">category</span>
+                  <div style="width: 52px; height: 52px; border-radius: 50%; background: #eff4ff; color: var(--secondary); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 0.5rem;">
+                    <span class="material-symbols-outlined" style="font-size: 26px;">category</span>
                   </div>
                   <div style="font-weight: 700; color: var(--on-surface);">No Categories Found</div>
                   <div style="font-size: 0.85rem;">Click "Add New Category" to create your first clinical category.</div>
@@ -98,13 +98,13 @@ export function renderCategoriesView() {
 // Category Add / Edit Modal Form
 export function renderCategoryModal(category = null) {
   const isEdit = !!category;
-  const icons = ['soap', 'science', 'spa', 'wb_sunny', 'healing', 'medication', 'water_drop', 'sanitizer'];
+  const icons = ['soap', 'science', 'spa', 'wb_sunny', 'healing', 'medication', 'water_drop', 'sanitizer', 'local_pharmacy'];
 
   return `
     <div class="modal-backdrop" id="categoryFormModalBackdrop">
-      <div class="modal-dialog" style="max-width: 500px;">
-        <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
-          <h3 class="font-headline-sm" style="color: var(--on-surface);">
+      <div class="modal-dialog" style="max-width: 480px;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
+          <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">
             ${isEdit ? 'Edit Category' : 'Add New Category'}
           </h3>
           <button class="btn-ghost" id="closeCategoryModalBtn" style="padding: 6px; min-height: 36px;">
@@ -117,12 +117,12 @@ export function renderCategoryModal(category = null) {
 
           <div class="form-group">
             <label class="form-label" for="catFormName">Category Name <span style="color: var(--error);">*</span></label>
-            <input type="text" id="catFormName" class="form-input" placeholder="e.g. Face Wash & Cleansers" value="${category ? category.name : ''}" required />
+            <input type="text" id="catFormName" class="form-input" placeholder="e.g. Cleansers & Face Wash" value="${category ? category.name : ''}" required />
           </div>
 
           <div class="form-group">
             <label class="form-label" for="catFormIcon">Material Icon Tag</label>
-            <select id="catFormIcon" class="form-input" style="height: 56px;">
+            <select id="catFormIcon" class="form-input" style="height: 52px;">
               ${icons.map(ic => `
                 <option value="${ic}" ${category && category.icon === ic ? 'selected' : ''}>${ic}</option>
               `).join('')}

@@ -106,18 +106,16 @@ export function renderSettingsView() {
         <div style="background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; padding: 1.75rem; box-shadow: var(--shadow-level-1);">
           <div style="font-size: 0.85rem; font-weight: 700; color: var(--error); text-transform: uppercase; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 6px;">
             <span class="material-symbols-outlined" style="font-size: 20px;">lock</span>
-            4. Admin Password Settings
+            4. Admin Account Security
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-            <div class="form-group">
-              <label class="form-label" for="settingCurrentPassword">Current Password</label>
-              <input type="password" id="settingCurrentPassword" class="form-input" placeholder="Current password" />
+          <div>
+            <div class="form-group" style="max-width: 400px;">
+              <label class="form-label" for="settingNewPassword">Update Password (leave blank to keep current)</label>
+              <input type="password" id="settingNewPassword" class="form-input" placeholder="New password (min 6 chars)" />
             </div>
-
-            <div class="form-group">
-              <label class="form-label" for="settingNewPassword">New Password</label>
-              <input type="password" id="settingNewPassword" class="form-input" placeholder="Min 4 characters" />
+            <div style="font-size: 0.78rem; color: var(--outline); margin-top: 6px;">
+              Directly updates your verified Supabase Admin credentials.
             </div>
           </div>
         </div>
