@@ -175,6 +175,26 @@ export interface CatalogSyncMetadataRow {
   updated_at: string;
 }
 
+export interface AppSettingsRow {
+  id: string;
+  setting_key: string;
+  pharmacy_name: string;
+  lead_pharmacist: string;
+  location: string;
+  sub_location: string | null;
+  phone: string;
+  logo_path: string | null;
+  logo_version: number;
+  welcome_title: string;
+  welcome_subtitle: string;
+  severe_warning_text: string;
+  inactivity_timeout_seconds: number;
+  enable_offline_sync: boolean;
+  require_pharmacist_override: boolean;
+  updated_at: string;
+  created_at: string;
+}
+
 export interface CatalogDeletionRow {
   id: string;
   entity_type: CatalogEntityType;
@@ -255,6 +275,26 @@ export type CategoryUpdate = Partial<CategoryInsert>;
 export type SkinProblemUpdate = Partial<SkinProblemInsert>;
 export type ProductUpdate = Partial<ProductInsert>;
 
+export type AppSettingsInsert = {
+  setting_key?: string;
+  pharmacy_name?: string;
+  lead_pharmacist?: string;
+  location?: string;
+  sub_location?: string | null;
+  phone?: string;
+  logo_path?: string | null;
+  logo_version?: number;
+  welcome_title?: string;
+  welcome_subtitle?: string;
+  severe_warning_text?: string;
+  inactivity_timeout_seconds?: number;
+  enable_offline_sync?: boolean;
+  require_pharmacist_override?: boolean;
+  updated_at?: string;
+};
+
+export type AppSettingsUpdate = Partial<AppSettingsInsert>;
+
 // ---------------------------------------------------------------------------
 // DATABASE — Full Supabase schema type map
 // Compatible with createClient<Database>() from @supabase/supabase-js
@@ -330,6 +370,11 @@ export interface Database {
           catalog_version: number;
         };
         Update: Record<string, never>;
+      };
+      app_settings: {
+        Row: AppSettingsRow;
+        Insert: AppSettingsInsert;
+        Update: AppSettingsUpdate;
       };
     };
     Views: Record<string, never>;

@@ -1,3 +1,6 @@
+// src/components/admin/skinProblemsView.js
+// Admin Skin Problems View & Add/Edit Modal with Client-Side WebP Processing.
+
 import { adminStore } from '../../store/adminStore.js';
 
 export function renderSkinProblemsView() {
@@ -5,7 +8,7 @@ export function renderSkinProblemsView() {
 
   const rowsHtml = skinProblems.map((prob, idx) => {
     const isActive = prob.status === 'active';
-    const isSevere = !!prob.isSevere;
+    const isSevere = !!(prob.isSevere || prob.is_severe);
 
     return `
       <tr>
@@ -14,9 +17,9 @@ export function renderSkinProblemsView() {
         </td>
         <td>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${prob.image || 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=120&q=80'}" alt="${prob.title}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />
+            <img src="${prob.image || prob.image_path || 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=120&q=80'}" alt="${prob.title || prob.name}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />
             <div>
-              <div style="font-weight: 700; color: var(--on-surface); font-size: 0.95rem;">${prob.title}</div>
+              <div style="font-weight: 700; color: var(--on-surface); font-size: 0.95rem;">${prob.title || prob.name}</div>
               <div style="font-size: 0.8rem; color: var(--secondary);">${prob.nepaliTitle || ''}</div>
             </div>
           </div>
@@ -115,10 +118,11 @@ export function renderSkinProblemsView() {
 // Add / Edit Skin Problem Modal
 export function renderSkinProblemModal(problem = null) {
   const isEdit = !!problem;
+  const defaultImg = problem ? (problem.image || problem.image_path || '') : '';
 
   return `
     <div class="modal-backdrop" id="problemFormModalBackdrop">
-      <div class="modal-dialog" style="max-width: 620px;">
+      <div class="modal-dialog" style="max-width: 640px;">
         <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between;">
           <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">
             ${isEdit ? 'Edit Skin Problem' : 'Add New Skin Problem'}
@@ -133,20 +137,21 @@ export function renderSkinProblemModal(problem = null) {
 
           <div class="form-group">
             <label class="form-label" for="probFormTitle">Condition Title (English) <span style="color: var(--error);">*</span></label>
-            <input type="text" id="probFormTitle" class="form-input" placeholder="e.g. High Altitude UV Damage & Melasma" value="${problem ? problem.title : ''}" required />
+            <input type="text" id="probFormTitle" class="form-input" placeholder="e.g. High Altitude UV Damage & Melasma" value="${problem ? (problem.title || problem.name || '') : ''}" required />
           </div>
 
           <div class="form-group">
             <label class="form-label" for="probFormNepaliTitle">Nepali Name / Translation</label>
-            <input type="text" id="probFormNepaliTitle" class="form-input" placeholder="e.g. घामको डढेलो र कालो पोतो" value="${problem ? problem.nepaliTitle || '' : ''}" />
+            <input type="text" id="probFormNepaliTitle" class="form-input" placeholder="e.g. घामको डढेलो र कालो पोतो" value="${problem ? (problem.nepaliTitle || '') : ''}" />
           </div>
 
+          <!-- Condition Image with WebP Processing -->
           <div class="form-group">
-            <label class="form-label" for="probFormImageUrl">Condition Image (Supabase Storage / URL)</label>
+            <label class="form-label" for="probFormImageUrl">Condition Cover Image (Auto-WebP, max 800&times;800px, &le; 250 KB)</label>
             <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
-              <input type="url" id="probFormImageUrl" class="form-input" placeholder="https://..." value="${problem ? problem.image || '' : ''}" style="flex: 1;" />
-              <input type="file" id="probFileInput" accept="image/*" style="display: none;" />
-              <button type="button" class="btn-secondary" id="probUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+              <input type="url" id="probFormImageUrl" class="form-input" placeholder="https://..." value="${defaultImg}" style="flex: 1;" />
+              <input type="file" id="probFileInput" accept="image/jpeg, image/jpg, image/png, image/webp" style="display: none;" />
+              <button type="button" class="btn-primary" id="probUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
                 <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
                 <span>Upload</span>
               </button>
@@ -154,25 +159,28 @@ export function renderSkinProblemModal(problem = null) {
                 Sample
               </button>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--outline);">
-              <span>Upload to Supabase Storage bucket <code>product-images</code> or paste external URL</span>
+            
+            <div id="probImageFeedback" style="font-size: 0.75rem; margin-top: 4px; color: var(--outline);">
+              <span>Select JPEG, PNG, or WebP. Converted client-side before upload to Supabase.</span>
+            </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
               <button type="button" id="probClearImageBtn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.75rem; padding: 0;">Remove Image</button>
             </div>
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="probFormSummary">Short Summary (Shown on Kiosk Card)</label>
-            <textarea id="probFormSummary" class="form-input" rows="2" style="height: auto; padding: 10px;" required>${problem ? problem.summary || '' : ''}</textarea>
+            <label class="form-label" for="probFormSummary">Short Summary (Shown on Kiosk Card) <span style="color: var(--error);">*</span></label>
+            <textarea id="probFormSummary" class="form-input" rows="2" style="height: auto; padding: 10px;" placeholder="Brief clinical overview for patients..." required>${problem ? (problem.summary || problem.description || '') : ''}</textarea>
           </div>
 
           <div class="form-group">
             <label class="form-label" for="probFormDescription">Full Clinical Description (Expanded details)</label>
-            <textarea id="probFormDescription" class="form-input" rows="3" style="height: auto; padding: 10px;" required>${problem ? problem.description || '' : ''}</textarea>
+            <textarea id="probFormDescription" class="form-input" rows="3" style="height: auto; padding: 10px;" placeholder="Detailed pathophysiology and treatment considerations...">${problem ? (problem.description || '') : ''}</textarea>
           </div>
 
           <div class="form-group" style="margin-top: 0.5rem;">
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-              <input type="checkbox" id="probFormIsSevere" ${problem && problem.isSevere ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--tertiary);" />
+              <input type="checkbox" id="probFormIsSevere" ${problem && (problem.isSevere || problem.is_severe) ? 'checked' : ''} style="width: 20px; height: 20px; accent-color: var(--tertiary);" />
               <div>
                 <span class="font-label-md" style="color: var(--tertiary);">Flag as Severe Condition (Trigger Pharmacist Advisory)</span>
                 <div class="font-body-sm" style="color: var(--outline); font-size: 0.78rem;">

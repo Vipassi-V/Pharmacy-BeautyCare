@@ -2,6 +2,7 @@ import './style.css';
 import { sessionStore } from './store/sessionStore.js';
 import { adminStore } from './store/adminStore.js';
 import QRCode from 'qrcode';
+import { downloadExcelTemplate, parseAndValidateImport } from './lib/excelImportParser.js';
 
 // Customer Kiosk Views
 import {
@@ -34,6 +35,7 @@ import { renderConfirmModal, renderToast } from './components/admin/confirmModal
 let resetTimerInterval = null;
 let currentImportState = null;
 let activeEditingItem = null;
+let logoUploadState = null;
 
 function render() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -78,7 +80,7 @@ function render() {
         tabContent = renderReportsView();
         break;
       case 'settings':
-        tabContent = renderSettingsView();
+        tabContent = renderSettingsView(logoUploadState);
         break;
       default:
         tabContent = renderDashboardView();
@@ -249,115 +251,98 @@ function bindKioskEvents() {
     card.querySelector('.concern-body')?.addEventListener('click', () => sessionStore.toggleExpandConcern(concernId));
     card.querySelector('.btn-add-concern')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      sessionStore.toggleConcern(concernId);
+      sessionStore.toggleSelectConcern(concernId);
     });
   });
 
   document.getElementById('backToSkinTypeBtn')?.addEventListener('click', () => sessionStore.setStep(3));
-  document.getElementById('proceedToReviewBtn')?.addEventListener('click', () => {
+  document.getElementById('continueToReviewBtn')?.addEventListener('click', () => {
     if (sessionStore.getState().selectedConcernIds.length > 0) sessionStore.setStep(5);
   });
 
-  document.getElementById('editNameBtn')?.addEventListener('click', () => sessionStore.setStep(2));
-  document.getElementById('editSkinTypeBtn')?.addEventListener('click', () => sessionStore.setStep(3));
-  document.getElementById('editConcernsBtn')?.addEventListener('click', () => sessionStore.setStep(4));
   document.getElementById('backToConcernsBtn')?.addEventListener('click', () => sessionStore.setStep(4));
-  document.getElementById('generateRecommendationsBtn')?.addEventListener('click', () => sessionStore.setStep(6));
+  document.getElementById('confirmRegimenBtn')?.addEventListener('click', () => sessionStore.setStep(6));
 
-  document.getElementById('openQRModalBtn')?.addEventListener('click', () => sessionStore.setQRModal(true));
-  document.getElementById('previewMobilePageBtn')?.addEventListener('click', () => sessionStore.setMobileView(true));
-
+  document.getElementById('showQRBtn')?.addEventListener('click', () => sessionStore.setQRModal(true));
   document.getElementById('closeQRModalBtn')?.addEventListener('click', () => sessionStore.setQRModal(false));
-  document.getElementById('doneWithQRBtn')?.addEventListener('click', () => {
-    sessionStore.setQRModal(false);
-    sessionStore.setStep(9);
-  });
-  document.getElementById('directMobileOpenBtn')?.addEventListener('click', () => {
-    sessionStore.setQRModal(false);
-    sessionStore.setMobileView(true);
-  });
   document.getElementById('qrModalBackdrop')?.addEventListener('click', (e) => {
     if (e.target.id === 'qrModalBackdrop') sessionStore.setQRModal(false);
   });
 
-  document.getElementById('retryCatalogBtn')?.addEventListener('click', () => {
-    adminStore.refreshAll();
-  });
-
-  document.getElementById('returnHomeBtn')?.addEventListener('click', () => sessionStore.clearSession());
+  document.getElementById('finishSessionBtn')?.addEventListener('click', () => sessionStore.setStep(9));
+  document.getElementById('resetKioskImmediateBtn')?.addEventListener('click', () => sessionStore.clearSession());
 }
 
+// --- Mobile Event Bindings ---
 function bindMobileEvents() {
-  document.getElementById('exitMobileViewBtn')?.addEventListener('click', () => {
-    sessionStore.setMobileView(false);
-    const url = new URL(window.location);
-    url.searchParams.delete('view');
-    window.history.pushState({}, '', url);
-    render();
+  document.getElementById('mobileHeaderHomeBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.href = window.location.origin;
   });
 }
 
-// --- Admin Login Event Bindings ---
+// --- Admin Login Events ---
 function bindAdminLoginEvents() {
-  const form = document.getElementById('adminLoginForm');
-  const submitBtn = form?.querySelector('button[type="submit"]');
-
-  form?.addEventListener('submit', async (e) => {
+  const loginForm = document.getElementById('adminLoginForm');
+  loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('adminEmailInput')?.value?.trim();
-    const pwd = document.getElementById('adminPasswordInput').value;
-
-    // Show loading state
+    const email = document.getElementById('adminEmailInput')?.value;
+    const pwd = document.getElementById('adminPasswordInput')?.value;
+    const submitBtn = document.getElementById('adminLoginSubmitBtn');
+    
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite;">sync</span><span>Authenticating...</span>';
+      submitBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Authenticating...</span>';
     }
 
-    const result = await adminStore.login(pwd, email);
-
-    if (!result.success) {
-      document.getElementById('app').innerHTML = renderAdminLogin(
-        result.error || 'Authentication failed. Please check your credentials.'
-      );
-      bindAdminLoginEvents();
+    const res = await adminStore.login(pwd, email);
+    if (!res.success) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 20px;">lock_open</span><span>Access Admin Console</span>';
+      }
+      const errBox = document.getElementById('loginErrorBox');
+      if (errBox) {
+        errBox.textContent = res.error;
+        errBox.style.display = 'block';
+      }
+    } else {
+      render();
     }
-    // On success, adminStore.notify() triggers render() automatically via subscription
   });
 }
 
 // --- Admin Portal Event Bindings ---
 function bindAdminEvents() {
-  // Hamburger / Sidebar toggle (mobile & tablet)
-  const hamburgerBtn = document.getElementById('adminHamburgerBtn');
-  const sidebar = document.getElementById('adminSidebar');
-  const backdrop = document.getElementById('adminSidebarBackdrop');
-
-  function openSidebar() {
-    sidebar?.classList.add('mobile-open');
-    backdrop?.classList.add('active');
-  }
-  function closeSidebar() {
-    sidebar?.classList.remove('mobile-open');
-    backdrop?.classList.remove('active');
-  }
-
-  hamburgerBtn?.addEventListener('click', openSidebar);
-  backdrop?.addEventListener('click', closeSidebar);
-
-  // Close sidebar on nav item click (mobile)
+  // Sidebar Tabs
   document.querySelectorAll('.admin-nav-item[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
-      closeSidebar();
       const tab = btn.getAttribute('data-tab');
       adminStore.setTab(tab);
     });
   });
 
+  // Mobile sidebar toggles
+  document.getElementById('adminMobileNavToggle')?.addEventListener('click', () => {
+    document.getElementById('adminSidebar')?.classList.add('mobile-open');
+    document.getElementById('adminSidebarBackdrop')?.classList.add('active');
+  });
+
+  document.getElementById('adminSidebarBackdrop')?.addEventListener('click', () => {
+    document.getElementById('adminSidebar')?.classList.remove('mobile-open');
+    document.getElementById('adminSidebarBackdrop')?.classList.remove('active');
+  });
+
+  // Switch to Kiosk
+  document.getElementById('adminKioskSwitchBtn')?.addEventListener('click', () => {
+    window.location.href = window.location.origin;
+  });
+
+  // Logout
   document.getElementById('adminLogoutBtn')?.addEventListener('click', () => {
-    adminStore.openModal('unsaved', {
+    adminStore.openModal('logout', {
       title: 'Confirm Logout',
-      message: 'Are you sure you want to end your pharmacist admin session?',
-      actionLabel: 'Log Out',
+      message: 'Are you sure you want to end your active administrative session?',
       onConfirm: () => {
         adminStore.logout();
         adminStore.closeModal();
@@ -365,24 +350,16 @@ function bindAdminEvents() {
     });
   });
 
-  // Reusable Confirmation Modal Triggers
-  document.getElementById('genericModalCancelBtn')?.addEventListener('click', () => adminStore.closeModal());
-  document.getElementById('genericModalBackdrop')?.addEventListener('click', (e) => {
-    if (e.target.id === 'genericModalBackdrop') adminStore.closeModal();
+  // Modal Backdrop dismiss
+  document.getElementById('confirmModalBackdrop')?.addEventListener('click', (e) => {
+    if (e.target.id === 'confirmModalBackdrop') adminStore.closeModal();
   });
-  document.getElementById('genericModalConfirmBtn')?.addEventListener('click', () => {
-    if (adminStore.activeModal && adminStore.activeModal.onConfirm) {
+  document.getElementById('cancelModalBtn')?.addEventListener('click', () => adminStore.closeModal());
+  document.getElementById('confirmActionBtn')?.addEventListener('click', () => {
+    if (adminStore.activeModal && typeof adminStore.activeModal.onConfirm === 'function') {
       adminStore.activeModal.onConfirm();
     }
   });
-
-  // Dashboard Shortcuts
-  document.getElementById('dashAddProductBtn')?.addEventListener('click', () => {
-    activeEditingItem = { type: 'product', data: null };
-    render();
-  });
-  document.getElementById('dashViewReportsBtn')?.addEventListener('click', () => adminStore.setTab('reports'));
-  document.getElementById('dashSeeAllSessionsBtn')?.addEventListener('click', () => adminStore.setTab('reports'));
 
   // --- Categories Events ---
   document.getElementById('openAddCategoryModalBtn')?.addEventListener('click', () => {
@@ -411,8 +388,8 @@ function bindAdminEvents() {
       adminStore.openModal(next === 'active' ? 'activate' : 'deactivate', {
         title: next === 'active' ? 'Activate Category' : 'Deactivate Category',
         message: next === 'active' 
-          ? 'This category will immediately become visible to customers on kiosk terminals.' 
-          : 'Hides this category and its products from customer kiosk screens.',
+          ? 'This category and its products will become selectable in the customer consultation flow.' 
+          : 'Hides this category from customer recommendation displays.',
         itemName: cat ? cat.name : id,
         onConfirm: () => {
           adminStore.toggleCategoryStatus(id, next);
@@ -426,23 +403,21 @@ function bindAdminEvents() {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-cat-id');
       const cat = adminStore.categories.find(c => c.id === id);
-      const validation = adminStore.canDeleteCategory(id);
+      const val = adminStore.canDeleteCategory(id);
 
-      if (!validation.canDelete) {
-        adminStore.openModal('unsaved', {
+      if (!val.canDelete) {
+        adminStore.openModal('notice', {
           title: 'Cannot Delete Category',
-          message: `Category "${cat ? cat.name : id}" cannot be deleted because ${validation.count} active product(s) still reference it (${validation.productNames.slice(0, 3).join(', ')}${validation.count > 3 ? '...' : ''}). Please reassign, deactivate, or delete those products first.`,
-          actionLabel: 'Understood',
-          onConfirm: () => {
-            adminStore.closeModal();
-          }
+          message: `Category "${cat ? cat.name : id}" is still referenced by ${val.count} active product(s) (${val.productNames.slice(0, 3).join(', ')}). Please reassign or delete those products first.`,
+          itemName: cat ? cat.name : id,
+          onConfirm: () => adminStore.closeModal()
         });
         return;
       }
 
       adminStore.openModal('delete', {
         title: 'Delete Category Permanently?',
-        message: 'This will permanently remove the category from the database.',
+        message: 'This will permanently remove this category. This action cannot be undone.',
         itemName: cat ? cat.name : id,
         onConfirm: () => {
           adminStore.deleteCategory(id);
@@ -452,13 +427,12 @@ function bindAdminEvents() {
     });
   });
 
-  // Category Modal Form Submit
   document.getElementById('categoryModalForm')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const id = document.getElementById('catFormId').value;
     const name = document.getElementById('catFormName').value;
     const icon = document.getElementById('catFormIcon').value;
-    const order = Number(document.getElementById('catFormOrder').value) || 1;
+    const order = Number(document.getElementById('catFormOrder').value) || 0;
 
     if (id) {
       adminStore.updateCategory(id, { name, icon, order });
@@ -567,7 +541,7 @@ function bindAdminEvents() {
     render();
   });
 
-  // Skin Problem Image Upload & Samples
+  // Skin Problem WebP Image Upload with Client Processing
   document.getElementById('probUploadFileBtn')?.addEventListener('click', () => {
     document.getElementById('probFileInput')?.click();
   });
@@ -575,26 +549,43 @@ function bindAdminEvents() {
   document.getElementById('probFileInput')?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const uploadBtn = document.getElementById('probUploadFileBtn');
+    const feedback = document.getElementById('probImageFeedback');
+    const currentId = document.getElementById('probFormId')?.value || null;
+
     if (uploadBtn) {
       uploadBtn.disabled = true;
-      uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Uploading...</span>';
+      uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Processing...</span>';
     }
-    const res = await adminStore.uploadAssetImage(file, 'problems');
-    if (uploadBtn) {
-      uploadBtn.disabled = false;
-      uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span><span>Upload</span>';
-    }
-    if (res.publicUrl) {
-      const urlInput = document.getElementById('probFormImageUrl');
-      if (urlInput) urlInput.value = res.publicUrl;
-      adminStore.showToast('Condition image uploaded to Supabase Storage!');
+
+    try {
+      const res = await adminStore.uploadSkinProblemImage(file, currentId, (p) => {
+        if (feedback) feedback.innerHTML = `<span style="color: var(--primary-container);">⏳ ${p.phase} (${p.progress}%)</span>`;
+      });
+
+      if (res.publicUrl) {
+        const urlInput = document.getElementById('probFormImageUrl');
+        if (urlInput) urlInput.value = res.publicUrl;
+        if (feedback) feedback.innerHTML = `<span style="color: var(--primary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) &amp; Uploaded</span>`;
+        adminStore.showToast('Condition image processed &amp; uploaded to Supabase!');
+      }
+    } catch (err) {
+      if (feedback) feedback.innerHTML = `<span style="color: var(--error); font-weight: 600;">⚠ ${err.message}</span>`;
+      adminStore.showToast(err.message, 'error');
+    } finally {
+      if (uploadBtn) {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span><span>Upload</span>';
+      }
     }
   });
 
   document.getElementById('probClearImageBtn')?.addEventListener('click', () => {
     const urlInput = document.getElementById('probFormImageUrl');
     if (urlInput) urlInput.value = '';
+    const feedback = document.getElementById('probImageFeedback');
+    if (feedback) feedback.innerHTML = '<span>Image cleared.</span>';
   });
 
   document.getElementById('probImageSampleBtn')?.addEventListener('click', () => {
@@ -603,7 +594,9 @@ function bindAdminEvents() {
       "https://images.unsplash.com/photo-1512290900672-1f55b9355755?auto=format&fit=crop&w=600&q=80",
       "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=80"
     ];
-    document.getElementById('probFormImageUrl').value = samples[Math.floor(Math.random() * samples.length)];
+    const selected = samples[Math.floor(Math.random() * samples.length)];
+    const urlInput = document.getElementById('probFormImageUrl');
+    if (urlInput) urlInput.value = selected;
   });
 
   // --- Products Events & Live Preview ---
@@ -696,23 +689,38 @@ function bindAdminEvents() {
     document.getElementById('prodFileInput')?.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
+
       const uploadBtn = document.getElementById('prodUploadFileBtn');
+      const feedback = document.getElementById('prodImageFeedback');
+      const currentId = document.getElementById('prodFormId')?.value || null;
+
       if (uploadBtn) {
         uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Uploading...</span>';
+        uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Processing...</span>';
       }
-      const res = await adminStore.uploadAssetImage(file, 'products');
-      if (uploadBtn) {
-        uploadBtn.disabled = false;
-        uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span><span>Upload</span>';
-      }
-      if (res.publicUrl) {
-        const urlInput = document.getElementById('prodFormImage');
-        if (urlInput) {
-          urlInput.value = res.publicUrl;
-          bindLivePreview();
+
+      try {
+        const res = await adminStore.uploadProductImage(file, currentId, (p) => {
+          if (feedback) feedback.innerHTML = `<span style="color: var(--primary-container);">⏳ ${p.phase} (${p.progress}%)</span>`;
+        });
+
+        if (res.publicUrl) {
+          const urlInput = document.getElementById('prodFormImage');
+          if (urlInput) {
+            urlInput.value = res.publicUrl;
+            bindLivePreview();
+          }
+          if (feedback) feedback.innerHTML = `<span style="color: var(--primary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) &amp; Uploaded</span>`;
+          adminStore.showToast('Product photo processed &amp; uploaded to Supabase!');
         }
-        adminStore.showToast('Product image uploaded to Supabase Storage!');
+      } catch (err) {
+        if (feedback) feedback.innerHTML = `<span style="color: var(--error); font-weight: 600;">⚠ ${err.message}</span>`;
+        adminStore.showToast(err.message, 'error');
+      } finally {
+        if (uploadBtn) {
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span><span>Upload</span>';
+        }
       }
     });
 
@@ -722,6 +730,8 @@ function bindAdminEvents() {
         urlInput.value = '';
         bindLivePreview();
       }
+      const feedback = document.getElementById('prodImageFeedback');
+      if (feedback) feedback.innerHTML = '<span>Photo removed.</span>';
     });
 
     document.getElementById('prodImageSampleBtn')?.addEventListener('click', () => {
@@ -774,17 +784,8 @@ function bindAdminEvents() {
 
   // --- Excel / CSV Import Workflow Events ---
   document.getElementById('downloadCsvTemplateBtn')?.addEventListener('click', () => {
-    const csvContent = `"brand","name","categoryId","price","instruction","badges","linkedConcerns"
-"CeraVe","Hydrating Facial Cleanser","face_wash",1850,"Massage 1 min on damp skin.","Ceramide, Non-comedogenic","mountain_uv_pigmentation, acute_barrier_breakdown"
-"The Ordinary","Niacinamide 10% + Zinc 1%","serum",1650,"Apply 3 drops before creams.","Oil Control, Blemish Care","hormonal_inflammatory_acne"
-"Biore","UV Aqua Rich Watery Essence SPF50+","sunscreen",1900,"Apply 2 fingers 15m prior to sun.","High Altitude SPF50, PA++++","mountain_uv_pigmentation"`;
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'ronit_products_template.csv';
-    link.click();
+    downloadExcelTemplate(adminStore.categories, adminStore.skinProblems);
+    adminStore.showToast('Downloaded standard 7-column product import template (images upload separately)');
   });
 
   const dropzone = document.getElementById('csvDropzone');
@@ -824,13 +825,35 @@ function bindAdminEvents() {
     render();
   });
 
-  document.getElementById('confirmBulkImportBtn')?.addEventListener('click', () => {
+  // Stage 2: Confirm Bulk Import
+  document.getElementById('confirmBulkImportBtn')?.addEventListener('click', async () => {
     if (currentImportState && currentImportState.rows) {
       const validRows = currentImportState.rows.filter(r => r.isValid);
-      adminStore.bulkImportProducts(validRows);
-      currentImportState = null;
-      adminStore.setTab('products');
+      const confirmBtn = document.getElementById('confirmBulkImportBtn');
+      if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Importing to Supabase...</span>';
+      }
+
+      const results = await adminStore.executeBulkImport(validRows);
+      currentImportState = {
+        ...currentImportState,
+        importCompleted: true,
+        successfulRowsCount: results.successfulRows.length,
+        failedRowsCount: results.failedRows.length
+      };
+      render();
     }
+  });
+
+  document.getElementById('viewCatalogAfterImportBtn')?.addEventListener('click', () => {
+    currentImportState = null;
+    adminStore.setTab('products');
+  });
+
+  document.getElementById('importAnotherFileBtn')?.addEventListener('click', () => {
+    currentImportState = null;
+    render();
   });
 
   // --- Reports Events ---
@@ -849,10 +872,64 @@ function bindAdminEvents() {
     adminStore.showToast('Reports CSV exported successfully');
   });
 
-  // --- Settings Events ---
+  // --- Settings Events & Pharmacy Logo Management ---
   document.querySelectorAll('.setting-input').forEach(input => {
     input.addEventListener('input', () => {
       adminStore.isDirty = true;
+    });
+  });
+
+  // Logo File Upload Button
+  document.getElementById('selectLogoFileBtn')?.addEventListener('click', () => {
+    document.getElementById('pharmacyLogoFileInput')?.click();
+  });
+
+  document.getElementById('pharmacyLogoFileInput')?.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    logoUploadState = { phase: 'Starting image processing...', progress: 10 };
+    render();
+
+    try {
+      const res = await adminStore.uploadPharmacyLogo(file, (p) => {
+        logoUploadState = { phase: p.phase, progress: p.progress };
+        const feedbackEl = document.getElementById('logoProcessingFeedback');
+        if (feedbackEl) {
+          feedbackEl.innerHTML = `
+            <div style="padding: 10px 14px; border-radius: var(--radius-md); font-size: 0.82rem; background: #f8fafc; color: var(--primary-container); border: 1px solid #cbd5e1;">
+              <div style="display: flex; align-items: center; gap: 8px; font-weight: 600;">
+                <span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span>
+                <span>${p.phase} (${p.progress}%)</span>
+              </div>
+            </div>
+          `;
+        }
+      });
+
+      logoUploadState = {
+        isDone: true,
+        message: `Logo converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) and published!`
+      };
+      render();
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      logoUploadState = { error: err.message || 'Failed to upload pharmacy logo.' };
+      render();
+    }
+  });
+
+  document.getElementById('removeLogoBtn')?.addEventListener('click', () => {
+    adminStore.openModal('delete', {
+      title: 'Remove Pharmacy Logo?',
+      message: 'This will remove the uploaded logo asset. The kiosk header will revert to the default emblem.',
+      itemName: 'Pharmacy Logo',
+      onConfirm: async () => {
+        await adminStore.removePharmacyLogo();
+        logoUploadState = null;
+        adminStore.closeModal();
+        render();
+      }
     });
   });
 
@@ -861,8 +938,8 @@ function bindAdminEvents() {
     const pharmacyName = document.getElementById('settingPharmacyName').value;
     const leadPharmacist = document.getElementById('settingLeadPharmacist').value;
     const location = document.getElementById('settingLocation').value;
+    const subLocation = document.getElementById('settingSubLocation')?.value || '';
     const phone = document.getElementById('settingPhone').value;
-    const logoUrl = document.getElementById('settingLogoUrl').value;
     const welcomeTitle = document.getElementById('settingWelcomeTitle').value;
     const welcomeSubtitle = document.getElementById('settingWelcomeSubtitle').value;
     const severeWarningText = document.getElementById('settingSevereWarningText').value;
@@ -880,69 +957,64 @@ function bindAdminEvents() {
       }
     }
 
-    adminStore.updateSettings({
-      pharmacyName,
-      leadPharmacist,
-      location,
-      phone,
-      logoUrl,
-      welcomeTitle,
-      welcomeSubtitle,
-      severeWarningText,
-      inactivityTimeoutSeconds,
-      enableOfflineSync
-    });
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Saving...</span>';
+    }
+
+    try {
+      await adminStore.updateSettings({
+        pharmacyName,
+        leadPharmacist,
+        location,
+        subLocation,
+        phone,
+        welcomeTitle,
+        welcomeSubtitle,
+        severeWarningText,
+        inactivityTimeoutSeconds,
+        enableOfflineSync
+      });
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+      }
+    }
   });
 }
 
 function handleImportFile(file) {
+  if (!file) return;
+
+  const ext = file.name ? file.name.split('.').pop()?.toLowerCase() : '';
+  if (ext === 'xlsx' || ext === 'xls') {
+    adminStore.showToast(`Direct binary .${ext} files must be saved/exported as CSV (.csv) before importing. Please export your Excel sheet as CSV.`, 'error');
+    return;
+  }
+
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    if (lines.length < 2) {
-      adminStore.showToast('CSV file must have at least a header and 1 row.', 'error');
-      return;
-    }
+    try {
+      const validationResult = parseAndValidateImport(
+        text,
+        adminStore.categories,
+        adminStore.skinProblems,
+        adminStore.products
+      );
 
-    const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-    const validCatIds = adminStore.categories.map(c => c.id);
-
-    const rows = lines.slice(1).map((line, idx) => {
-      const values = line.split(',').map(v => v.replace(/"/g, '').trim());
-      const rowObj = {
-        brand: values[0] || '',
-        name: values[1] || '',
-        categoryId: values[2] || '',
-        price: Number(values[3]) || 0,
-        instruction: values[4] || 'Apply smoothly twice daily.',
-        badges: values[5] ? values[5].split(';').map(b => b.trim()) : ['Verified OTC'],
-        suitableConcerns: values[6] ? values[6].split(';').map(c => c.trim()) : [],
-        errors: [],
-        isValid: true
+      currentImportState = {
+        filename: file.name,
+        ...validationResult
       };
-
-      if (!rowObj.brand) rowObj.errors.push('Missing brand');
-      if (!rowObj.name) rowObj.errors.push('Missing product name');
-      if (!rowObj.categoryId || !validCatIds.includes(rowObj.categoryId)) {
-        rowObj.errors.push(`Invalid category: "${rowObj.categoryId}"`);
-      }
-      if (!rowObj.price || isNaN(rowObj.price) || rowObj.price <= 0) {
-        rowObj.errors.push('Price must be greater than 0');
-      }
-
-      if (rowObj.errors.length > 0) {
-        rowObj.isValid = false;
-      }
-
-      return rowObj;
-    });
-
-    currentImportState = {
-      filename: file.name,
-      rows
-    };
-    render();
+      render();
+    } catch (err) {
+      console.error('Import parser exception:', err);
+      adminStore.showToast(err.message || 'Could not parse import file.', 'error');
+    }
   };
   reader.readAsText(file);
 }

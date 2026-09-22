@@ -1,3 +1,6 @@
+// src/components/admin/productsView.js
+// Admin Products View & Add/Edit Modal with Client-Side WebP Processing.
+
 import { adminStore } from '../../store/adminStore.js';
 
 export function renderProductsView() {
@@ -5,12 +8,12 @@ export function renderProductsView() {
 
   const rowsHtml = products.map((prod, idx) => {
     const isActive = prod.status === 'active';
-    const category = categories.find(c => c.id === prod.categoryId);
-    const categoryName = category ? category.name : prod.categoryId;
+    const category = categories.find(c => c.id === (prod.categoryId || prod.category_id));
+    const categoryName = category ? category.name : (prod.categoryId || 'Unassigned');
 
     const linkedConcernsHtml = (prod.suitableConcerns || []).map(cid => {
       const concern = skinProblems.find(p => p.id === cid);
-      return concern ? `<span style="font-size: 0.72rem; background: #eff4ff; color: var(--secondary); padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin: 1px;">${concern.title.split(' ')[0]}...</span>` : '';
+      return concern ? `<span style="font-size: 0.72rem; background: #eff4ff; color: var(--secondary); padding: 1px 6px; border-radius: 4px; font-weight: 600; display: inline-block; margin: 1px;">${(concern.title || concern.name).split(' ')[0]}...</span>` : '';
     }).join('');
 
     return `
@@ -20,9 +23,9 @@ export function renderProductsView() {
         </td>
         <td>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <img src="${prod.image || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'}" alt="${prod.name}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />
+            <img src="${prod.image || prod.image_path || 'https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'}" alt="${prod.name}" style="width: 48px; height: 48px; border-radius: 10px; object-fit: cover; border: 1px solid #e2e8f0; flex-shrink: 0;" />
             <div>
-              <div style="font-size: 0.75rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;">${prod.brand}</div>
+              <div style="font-size: 0.75rem; font-weight: 700; color: var(--secondary); text-transform: uppercase;">${prod.brand || 'Tansen Care'}</div>
               <div style="font-weight: 700; color: var(--on-surface); font-size: 0.95rem; line-height: 1.25;">${prod.name}</div>
               <div style="font-size: 0.75rem; color: var(--outline); margin-top: 2px;">
                 ${(prod.badges || []).join(' • ')}
@@ -76,7 +79,7 @@ export function renderProductsView() {
         <div>
           <h1 class="font-headline-md" style="color: var(--on-surface);">Product Catalog & Recommendations</h1>
           <p class="font-body-sm" style="color: var(--on-surface-variant);">
-            Maintain pharmacy formulations, pricing in NPR, and multi-link condition associations.
+            Maintain pharmacy formulations, pricing in NPR, WebP product photography, and skin condition mappings.
           </p>
         </div>
 
@@ -127,7 +130,7 @@ export function renderProductModal(product = null) {
   const { categories, skinProblems } = adminStore;
   const isEdit = !!product;
 
-  const defaultImg = product ? product.image : "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80";
+  const defaultImg = product ? (product.image || product.image_path) : "https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80";
 
   return `
     <div class="modal-backdrop" id="productFormModalBackdrop">
@@ -155,14 +158,14 @@ export function renderProductModal(product = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
                 <label class="form-label" for="prodFormBrand">Brand Name <span style="color: var(--error);">*</span></label>
-                <input type="text" id="prodFormBrand" class="form-input" placeholder="e.g. CeraVe, The Ordinary" value="${product ? product.brand : ''}" required />
+                <input type="text" id="prodFormBrand" class="form-input" placeholder="e.g. CeraVe, The Ordinary" value="${product ? (product.brand || '') : ''}" required />
               </div>
 
               <div class="form-group">
                 <label class="form-label" for="prodFormCategory">Assigned Category <span style="color: var(--error);">*</span></label>
                 <select id="prodFormCategory" class="form-input" style="height: 52px;" required>
                   ${categories.map(c => `
-                    <option value="${c.id}" ${product && product.categoryId === c.id ? 'selected' : ''}>${c.name}</option>
+                    <option value="${c.id}" ${product && (product.categoryId === c.id || product.category_id === c.id) ? 'selected' : ''}>${c.name}</option>
                   `).join('')}
                 </select>
               </div>
@@ -176,7 +179,7 @@ export function renderProductModal(product = null) {
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
                 <label class="form-label" for="prodFormPrice">Price (NPR Rs.) <span style="color: var(--error);">*</span></label>
-                <input type="number" id="prodFormPrice" class="form-input" placeholder="1850" value="${product ? product.price : '1500'}" required />
+                <input type="number" id="prodFormPrice" class="form-input" placeholder="1850" min="0" step="1" value="${product ? (product.price || 0) : '1500'}" required />
               </div>
 
               <div class="form-group">
@@ -185,12 +188,13 @@ export function renderProductModal(product = null) {
               </div>
             </div>
 
+            <!-- Product Image Upload Section with Client-Side WebP Processing -->
             <div class="form-group">
-              <label class="form-label" for="prodFormImage">Product Image (Supabase Storage / URL)</label>
+              <label class="form-label" for="prodFormImage">Product Photo (Auto-WebP, max 800&times;800px, &le; 250 KB)</label>
               <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
-                <input type="url" id="prodFormImage" class="form-input" placeholder="https://..." value="${defaultImg}" style="flex: 1;" />
-                <input type="file" id="prodFileInput" accept="image/*" style="display: none;" />
-                <button type="button" class="btn-secondary" id="prodUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
+                <input type="url" id="prodFormImage" class="form-input" placeholder="https://..." value="${defaultImg || ''}" style="flex: 1;" />
+                <input type="file" id="prodFileInput" accept="image/jpeg, image/jpg, image/png, image/webp" style="display: none;" />
+                <button type="button" class="btn-primary" id="prodUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
                   <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
                   <span>Upload</span>
                 </button>
@@ -198,15 +202,19 @@ export function renderProductModal(product = null) {
                   Sample
                 </button>
               </div>
-              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--outline);">
-                <span>Upload to Supabase Storage bucket <code>product-images</code> or paste external URL</span>
+
+              <!-- Live Upload Feedback Bar -->
+              <div id="prodImageFeedback" style="font-size: 0.75rem; margin-top: 4px; color: var(--outline);">
+                <span>Select JPEG, PNG, or WebP. The app resizes &amp; compresses client-side before uploading.</span>
+              </div>
+              <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
                 <button type="button" id="prodClearImageBtn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.75rem; padding: 0;">Remove Image</button>
               </div>
             </div>
 
             <div class="form-group">
               <label class="form-label" for="prodFormInstruction">Application & Dosage Instructions <span style="color: var(--error);">*</span></label>
-              <textarea id="prodFormInstruction" class="form-input" rows="3" style="height: auto; padding: 10px;" placeholder="Dispense 1-2 drops, massage over damp skin..." required>${product ? product.instruction : 'Apply 2-3 drops onto cleansed face every morning and night.'}</textarea>
+              <textarea id="prodFormInstruction" class="form-input" rows="3" style="height: auto; padding: 10px;" placeholder="Dispense 1-2 drops, massage over damp skin..." required>${product ? (product.instruction || '') : 'Apply 2-3 drops onto cleansed face every morning and night.'}</textarea>
             </div>
 
             <!-- Linked Problems Multi-select -->
@@ -218,8 +226,8 @@ export function renderProductModal(product = null) {
                   return `
                     <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--on-surface); cursor: pointer; padding: 4px;">
                       <input type="checkbox" name="prodLinkedConcerns" value="${prob.id}" ${isChecked ? 'checked' : ''} style="accent-color: var(--primary-container); width: 18px; height: 18px;" />
-                      <span>${prob.title}</span>
-                      ${prob.isSevere ? '<span style="font-size: 0.7rem; background: var(--warning-wash); color: var(--tertiary); padding: 1px 6px; border-radius: 4px; font-weight: 700;">Severe</span>' : ''}
+                      <span>${prob.title || prob.name}</span>
+                      ${prob.isSevere || prob.is_severe ? '<span style="font-size: 0.7rem; background: var(--warning-wash); color: var(--tertiary); padding: 1px 6px; border-radius: 4px; font-weight: 700;">Severe</span>' : ''}
                     </label>
                   `;
                 }).join('')}
@@ -245,7 +253,7 @@ export function renderProductModal(product = null) {
               <img id="simCardImg" src="${defaultImg}" alt="Preview" style="width: 100%; aspect-ratio: 4 / 3; max-height: 180px; object-fit: cover; background: #f1f5f9;" />
               <div style="padding: 1rem; display: flex; flex-direction: column; gap: 6px;">
                 <div id="simCardBrand" class="font-label-sm" style="color: var(--secondary); text-transform: uppercase;">
-                  ${product ? product.brand : 'BRAND NAME'}
+                  ${product ? (product.brand || 'BRAND') : 'BRAND NAME'}
                 </div>
                 <div id="simCardName" class="font-headline-sm" style="color: var(--on-surface); font-size: 1rem; line-height: 1.3;">
                   ${product ? product.name : 'Product Title Preview'}
@@ -255,11 +263,11 @@ export function renderProductModal(product = null) {
                 </div>
                 <div class="product-instruction-box" style="font-size: 0.78rem; padding: 6px 8px;">
                   <strong style="color: var(--secondary);">Usage:</strong> 
-                  <span id="simCardInstruction">${product ? product.instruction : 'Apply smoothly every morning.'}</span>
+                  <span id="simCardInstruction">${product ? (product.instruction || '') : 'Apply smoothly every morning.'}</span>
                 </div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 8px;">
                   <div id="simCardPrice" class="product-price-tag" style="font-size: 1.1rem;">
-                    Rs. ${product ? (product.price || 0).toLocaleString() : '1,500'}
+                    Rs. ${product ? (Number(product.price) || 0).toLocaleString() : '1,500'}
                   </div>
                   <span style="font-size: 0.75rem; background: #f0fdf4; color: var(--primary); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">
                     In Stock

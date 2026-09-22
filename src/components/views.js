@@ -1,27 +1,37 @@
-import { pharmacyInfo, skinTypes } from '../data/mockData.js';
+import { skinTypes } from '../data/mockData.js';
 import { sessionStore } from '../store/sessionStore.js';
 import { adminStore } from '../store/adminStore.js';
 import QRCode from 'qrcode';
 
 // Header Component
 export function renderHeader(state) {
+  const { settings } = adminStore;
+  const logoUrl = settings?.logoUrl;
+  const pharmacyName = settings?.pharmacyName || '';
+
   return `
     <header class="kiosk-header">
       <div class="kiosk-header-inner">
         <a href="#" class="brand-emblem" id="headerHomeBtn" aria-label="Home">
-          <div class="brand-icon-box">
-            <span class="material-symbols-outlined" style="font-size: 24px;">local_pharmacy</span>
+          <div class="brand-icon-box" style="${logoUrl ? 'background: #ffffff; padding: 2px;' : ''}">
+            ${logoUrl ? `
+              <img src="${logoUrl}" alt="${pharmacyName || 'Pharmacy Logo'}" style="width: 100%; height: 100%; object-fit: contain; border-radius: 8px;" />
+            ` : `
+              <span class="material-symbols-outlined" style="font-size: 24px;">local_pharmacy</span>
+            `}
           </div>
           <div>
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-              <span class="font-label-lg" style="color: var(--primary); font-weight: 700;">${pharmacyInfo.name}</span>
-              <span class="location-chip">
-                <span class="material-symbols-outlined" style="font-size: 14px;">location_on</span>
-                Tansen, Palpa
-              </span>
+              <span class="font-label-lg" style="color: var(--primary); font-weight: 700;">${pharmacyName}</span>
+              ${settings?.location ? `
+                <span class="location-chip">
+                  <span class="material-symbols-outlined" style="font-size: 14px;">location_on</span>
+                  ${settings.location}
+                </span>
+              ` : ''}
             </div>
             <div class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem;">
-              ${pharmacyInfo.subtitle} • Skin Consultation Kiosk
+              Skin Consultation Kiosk
             </div>
           </div>
         </a>
@@ -65,6 +75,10 @@ export function renderStepper(currentStep) {
 
 // 1. Welcome Screen
 export function renderWelcomeScreen() {
+  const { settings } = adminStore;
+  const welcomeTitle = settings?.welcomeTitle || 'Clinical Skincare Consultation';
+  const welcomeSubtitle = settings?.welcomeSubtitle || 'Personalized clinical skincare recommendations calibrated for your skin profile.';
+
   return `
     <div class="kiosk-container" style="max-width: 760px; text-align: center; padding: 2.5rem 1rem;">
       <div style="display: inline-flex; align-items: center; justify-content: center; width: 84px; height: 84px; border-radius: 24px; background: #f0fdf4; border: 2px solid var(--primary-fixed-dim); color: var(--primary-container); margin-bottom: 1.5rem; box-shadow: var(--shadow-level-1);">
@@ -72,11 +86,11 @@ export function renderWelcomeScreen() {
       </div>
 
       <h1 class="font-headline-xl" style="color: var(--primary); margin-bottom: 0.75rem;">
-        Welcome to Ronit Skincare Consultation
+        ${welcomeTitle}
       </h1>
       
       <p class="font-body-lg" style="color: var(--on-surface-variant); max-width: 600px; margin: 0 auto 2.25rem;">
-        Personalized, altitude-calibrated skincare recommendations designed specifically for the mountain climate and UV exposure of Tansen, Palpa.
+        ${welcomeSubtitle}
       </p>
 
       <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; text-align: left;">
@@ -576,6 +590,9 @@ export function renderRecommendationsScreen(state) {
               Clinical Pharmacist Advisory
             </div>
             <div class="font-body-md" style="color: #78350f; line-height: 1.5; font-size: 0.95rem;">
+              ${adminStore.settings?.severeWarningText ? `
+                <div style="margin-bottom: 6px; font-weight: 600;">${adminStore.settings.severeWarningText}</div>
+              ` : ''}
               One or more of your selected concerns (${selectedConcerns.filter(c => c.isSevere).map(c => `<strong>${c.title}</strong>`).join(', ')}) indicates acute skin irritation or barrier sensitivity. 
               <strong>Please speak directly with our attending pharmacist at the counter before applying high-strength active exfoliants.</strong>
             </div>
@@ -786,15 +803,26 @@ export function renderMobilePage(state) {
     `;
   });
 
+  const { settings } = adminStore;
+  const pharmacyName = settings?.pharmacyName || '';
+  const location = settings?.location || '';
+  const subLocation = settings?.subLocation || '';
+  const phone = settings?.phone || '';
+  const severeWarning = settings?.severeWarningText || 'Severe skin condition flagged. Please speak with our attending pharmacist before using high-strength actives.';
+
   return `
     <div class="mobile-view-wrapper">
       <!-- Mobile App Header -->
       <div style="padding: 1rem 1.25rem; background: var(--primary-container); color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <span class="material-symbols-outlined">local_pharmacy</span>
+          ${settings?.logoUrl ? `
+            <img src="${settings.logoUrl}" alt="${pharmacyName || 'Logo'}" style="width: 28px; height: 28px; object-fit: contain; background: #ffffff; border-radius: 6px; padding: 2px;" />
+          ` : `
+            <span class="material-symbols-outlined">local_pharmacy</span>
+          `}
           <div>
-            <div style="font-size: 0.95rem; font-weight: 700;">${pharmacyInfo.name}</div>
-            <div style="font-size: 0.75rem; opacity: 0.9;">Tansen, Palpa • Skincare Pass</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">${pharmacyName || 'Skincare Routine'}</div>
+            <div style="font-size: 0.75rem; opacity: 0.9;">${location ? `${location} • ` : ''}Skincare Pass</div>
           </div>
         </div>
         <button class="btn-ghost" id="exitMobileViewBtn" style="color: #ffffff; min-height: 36px; padding: 0 8px;">
@@ -817,7 +845,7 @@ export function renderMobilePage(state) {
 
         ${hasSevere ? `
           <div style="background: var(--warning-wash); border: 1px solid #fcd34d; border-left: 4px solid var(--warning-stripe); padding: 0.75rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #78350f; margin-bottom: 1rem;">
-            <strong>Pharmacist Note:</strong> Severe skin condition flagged. Please speak with our attending pharmacist before using high-strength actives.
+            <strong>Pharmacist Note:</strong> ${severeWarning}
           </div>
         ` : ''}
 
@@ -826,11 +854,14 @@ export function renderMobilePage(state) {
         ${productsList}
 
         <!-- Pharmacy Contact -->
-        <div style="margin-top: 1.5rem; padding: 1rem; background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; text-align: center;">
-          <div style="font-size: 0.85rem; font-weight: 700; color: var(--on-surface);">${pharmacyInfo.name}</div>
-          <div style="font-size: 0.8rem; color: var(--on-surface-variant);">${pharmacyInfo.subLocation}</div>
-          <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-top: 4px;">Phone: ${pharmacyInfo.phone}</div>
-        </div>
+        ${(pharmacyName || location || phone) ? `
+          <div style="margin-top: 1.5rem; padding: 1rem; background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; text-align: center;">
+            ${pharmacyName ? `<div style="font-size: 0.85rem; font-weight: 700; color: var(--on-surface);">${pharmacyName}</div>` : ''}
+            ${subLocation ? `<div style="font-size: 0.8rem; color: var(--on-surface-variant);">${subLocation}</div>` : ''}
+            ${location && location !== subLocation ? `<div style="font-size: 0.8rem; color: var(--on-surface-variant);">${location}</div>` : ''}
+            ${phone ? `<div style="font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-top: 4px;">Phone: ${phone}</div>` : ''}
+          </div>
+        ` : ''}
       </div>
     </div>
   `;

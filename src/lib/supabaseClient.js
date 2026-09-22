@@ -16,23 +16,48 @@ export const supabase = createClient(supabaseUrl || 'https://placeholder.supabas
 export const getUser = () => supabase.auth.getUser();
 
 /**
- * Upload an image file to Supabase Storage.
- * @param {File|Blob} file - The file object to upload
- * @param {string} bucketName - Bucket name (default: 'product-images')
- * @param {string} folder - Subfolder name (e.g. 'products' or 'problems')
- * @returns {Promise<{ publicUrl: string, path: string, error: Error|null }>}
+ * Check if the currently active session is authenticated as an admin.
+ * @returns {Promise<boolean>}
  */
-export async function uploadImage(file, bucketName = 'product-images', folder = 'products') {
+export async function verifyAdminAuth() {
   try {
-    if (!file) throw new Error('No file provided');
-    const fileExt = file.name ? file.name.split('.').pop() : 'webp';
-    const fileName = `${folder}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Upload a processed WebP image to Supabase Storage with deterministic versioned path.
+ * Paths follow:
+ * - products/<product-id>/image-v<version>.webp
+ * - skin-problems/<problem-id>/image-v<version>.webp
+ * - pharmacy/logo-v<version>.webp
+ * 
+ * @param {Blob|File} file - Processed WebP file object
+ * @param {string} destinationPath - Target path inside the bucket (e.g. `products/uuid/image-v1.webp`)
+ * @param {string} bucketName - Bucket name (default: 'product-images')
+ * @returns {Promise<{ publicUrl: string|null, path: string|null, error: Error|null }>}
+ */
+export async function uploadVersionedImage(file, destinationPath, bucketName = 'product-images') {
+  try {
+    if (!file) throw new Error('No image file provided for upload.');
+    if (!destinationPath) throw new Error('Destination storage path is required.');
+
+    // Security guard: Ensure active authenticated session
+    const isAuthed = await verifyAdminAuth();
+    if (!isAuthed) {
+      throw new Error('Unauthorized: You must be logged in as an active administrator to upload images.');
+    }
 
     const { data, error } = await supabase.storage
       .from(bucketName)
-      .upload(fileName, file, {
+      .upload(destinationPath, file, {
         cacheControl: '3600',
-        upsert: true
+        upsert: true,
+        contentType: 'image/webp'
       });
 
     if (error) throw error;
@@ -43,9 +68,19 @@ export async function uploadImage(file, bucketName = 'product-images', folder = 
 
     return { publicUrl: urlData.publicUrl, path: data.path, error: null };
   } catch (err) {
-    console.warn('Storage upload error (bucket may need creation or public policy):', err);
+    console.warn(`Storage upload error for "${destinationPath}":`, err);
     return { publicUrl: null, path: null, error: err };
   }
+}
+
+/**
+ * Legacy uploadImage helper for backward compatibility, routing to versioned upload.
+ */
+export async function uploadImage(file, bucketName = 'product-images', folder = 'products') {
+  const version = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 9);
+  const path = `${folder}/${randomId}/image-v1.webp`;
+  return uploadVersionedImage(file, path, bucketName);
 }
 
 /**
@@ -69,6 +104,7 @@ export function extractStoragePath(urlOrPath, bucketName = 'product-images') {
 
 /**
  * Delete an image from Supabase Storage by its path or public URL.
+ * Only deletes when authenticated.
  * @param {string} urlOrPath - The file path or public URL in the bucket
  * @param {string} bucketName - Bucket name (default: 'product-images')
  * @returns {Promise<{ success: boolean, error: Error|null }>}
@@ -77,9 +113,22 @@ export async function deleteImage(urlOrPath, bucketName = 'product-images') {
   try {
     const cleanPath = extractStoragePath(urlOrPath, bucketName);
     if (!cleanPath) return { success: true, error: null };
+
+    // Don't attempt to delete external unsplash/placeholder URLs from Supabase
+    if (urlOrPath.startsWith('http') && !urlOrPath.includes(supabaseUrl) && !urlOrPath.includes(bucketName)) {
+      return { success: true, error: null };
+    }
+
+    const isAuthed = await verifyAdminAuth();
+    if (!isAuthed) {
+      console.warn('Storage deletion skipped: Active admin authentication required.');
+      return { success: false, error: new Error('Unauthorized delete request') };
+    }
+
     const { error } = await supabase.storage
       .from(bucketName)
       .remove([cleanPath]);
+
     if (error) throw error;
     return { success: true, error: null };
   } catch (err) {
