@@ -17,7 +17,8 @@ import {
   renderQRModal,
   renderEndSessionConfirmModal,
   renderMobilePage,
-  renderEndSessionScreen
+  renderEndSessionScreen,
+  renderLoadingCardHtml
 } from './components/views.js';
 
 // Admin Views
@@ -70,30 +71,38 @@ function render() {
     }
 
     let tabContent = '';
-    switch (adminStore.currentTab) {
-      case 'dashboard':
-        tabContent = renderDashboardView();
-        break;
-      case 'categories':
-        tabContent = renderCategoriesView();
-        break;
-      case 'skin-problems':
-        tabContent = renderSkinProblemsView();
-        break;
-      case 'products':
-        tabContent = renderProductsView();
-        break;
-      case 'import':
-        tabContent = renderImportWorkflowView(currentImportState);
-        break;
-      case 'reports':
-        tabContent = renderReportsView();
-        break;
-      case 'settings':
-        tabContent = renderSettingsView(logoUploadState);
-        break;
-      default:
-        tabContent = renderDashboardView();
+    if (adminStore.isLoadingCatalog && adminStore.categories.length === 0 && adminStore.products.length === 0 && adminStore.currentTab !== 'settings') {
+      tabContent = renderLoadingCardHtml({
+        title: 'Loading Live Admin Data...',
+        subtitle: 'Connecting to Supabase and synchronizing pharmacy catalog...',
+        inline: true
+      });
+    } else {
+      switch (adminStore.currentTab) {
+        case 'dashboard':
+          tabContent = renderDashboardView();
+          break;
+        case 'categories':
+          tabContent = renderCategoriesView();
+          break;
+        case 'skin-problems':
+          tabContent = renderSkinProblemsView();
+          break;
+        case 'products':
+          tabContent = renderProductsView();
+          break;
+        case 'import':
+          tabContent = renderImportWorkflowView(currentImportState);
+          break;
+        case 'reports':
+          tabContent = renderReportsView();
+          break;
+        case 'settings':
+          tabContent = renderSettingsView(logoUploadState);
+          break;
+        default:
+          tabContent = renderDashboardView();
+      }
     }
 
     app.innerHTML = `
@@ -157,7 +166,7 @@ function render() {
   if (state.showQRModal) {
     const canvas = document.getElementById('qrCanvas');
     if (canvas) {
-      const url = `${window.location.origin}/?session=${state.sessionId}&view=mobile`;
+      const url = sessionStore.getMobileShareUrl();
       QRCode.toCanvas(canvas, url, {
         width: 220,
         margin: 1,
@@ -318,8 +327,7 @@ function bindKioskEvents() {
   openQRBtn?.addEventListener('click', () => sessionStore.setQRModal(true));
 
   document.getElementById('previewMobilePageBtn')?.addEventListener('click', () => {
-    const state = sessionStore.getState();
-    window.open(`/?session=${state.sessionId}&view=mobile`, '_blank');
+    window.open(sessionStore.getMobileShareUrl(), '_blank');
   });
 
   // QR Modal buttons
@@ -329,8 +337,7 @@ function bindKioskEvents() {
   });
 
   document.getElementById('directMobileOpenBtn')?.addEventListener('click', () => {
-    const state = sessionStore.getState();
-    window.open(`/?session=${state.sessionId}&view=mobile`, '_blank');
+    window.open(sessionStore.getMobileShareUrl(), '_blank');
   });
 
   const doneQRBtn = document.getElementById('doneWithQRBtn') || document.getElementById('finishSessionBtn');
@@ -358,13 +365,34 @@ function bindMobileEvents() {
 
 // --- Admin Login Events ---
 function bindAdminLoginEvents() {
+  // Password visibility toggle
+  const toggleBtn = document.getElementById('togglePasswordVisibilityBtn');
+  const pwdInput = document.getElementById('adminPasswordInput');
+  const visibilityIcon = document.getElementById('passwordVisibilityIcon');
+
+  toggleBtn?.addEventListener('click', () => {
+    if (pwdInput.type === 'password') {
+      pwdInput.type = 'text';
+      if (visibilityIcon) visibilityIcon.textContent = 'visibility_off';
+      toggleBtn.style.color = 'var(--primary)';
+    } else {
+      pwdInput.type = 'password';
+      if (visibilityIcon) visibilityIcon.textContent = 'visibility';
+      toggleBtn.style.color = 'var(--outline)';
+    }
+  });
+
   const loginForm = document.getElementById('adminLoginForm');
   loginForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('adminEmailInput')?.value;
-    const pwd = document.getElementById('adminPasswordInput')?.value;
+    const email = document.getElementById('adminEmailInput')?.value || '';
+    const pwd = document.getElementById('adminPasswordInput')?.value || '';
     const submitBtn = document.getElementById('adminLoginSubmitBtn');
+    const errBox = document.getElementById('loginErrorBox');
+    const errMsgText = document.getElementById('loginErrorMessageText');
     
+    if (errBox) errBox.style.display = 'none';
+
     if (submitBtn) {
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="material-symbols-outlined" style="animation: spin 1s linear infinite; font-size: 18px;">sync</span><span>Authenticating...</span>';
@@ -374,12 +402,15 @@ function bindAdminLoginEvents() {
     if (!res.success) {
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 20px;">lock_open</span><span>Access Admin Console</span>';
+        submitBtn.innerHTML = '<span class="material-symbols-outlined">login</span><span>Sign In to Admin Portal</span>';
       }
-      const errBox = document.getElementById('loginErrorBox');
+      
+      const readableError = res.error || 'Invalid admin email or password. Please check your credentials and try again.';
+      if (errMsgText) {
+        errMsgText.textContent = readableError;
+      }
       if (errBox) {
-        errBox.textContent = res.error;
-        errBox.style.display = 'block';
+        errBox.style.display = 'flex';
       }
     } else {
       render();
@@ -1133,6 +1164,9 @@ adminStore.subscribe(() => {
 
 window.addEventListener('DOMContentLoaded', async () => {
   const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('session') || urlParams.get('c') || urlParams.get('st') || urlParams.get('view') === 'mobile') {
+    sessionStore.loadSessionFromUrl(urlParams);
+  }
   const sessionParam = urlParams.get('session');
   if (sessionParam) {
     await sessionStore.loadSessionFromQuery(sessionParam);

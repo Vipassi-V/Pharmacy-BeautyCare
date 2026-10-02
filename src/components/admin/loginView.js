@@ -18,12 +18,10 @@ export function renderAdminLogin(errorMessage = '') {
 
         <!-- Form -->
         <form id="adminLoginForm" style="padding: 2rem 1.75rem;">
-          ${errorMessage ? `
-            <div style="background: #ffdad6; color: var(--error); padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; margin-bottom: 1.25rem; display: flex; align-items: flex-start; gap: 8px; line-height: 1.4;">
-              <span class="material-symbols-outlined" style="font-size: 18px; flex-shrink: 0; margin-top: 1px;">error</span>
-              <span>${errorMessage}</span>
-            </div>
-          ` : ''}
+          <div id="loginErrorBox" style="display: ${errorMessage ? 'flex' : 'none'}; background: #ffdad6; color: var(--error); padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.875rem; font-weight: 500; margin-bottom: 1.25rem; align-items: flex-start; gap: 8px; line-height: 1.4; border: 1px solid #fecaca;">
+            <span class="material-symbols-outlined" style="font-size: 18px; flex-shrink: 0; margin-top: 1px;">error</span>
+            <span id="loginErrorMessageText">${errorMessage || ''}</span>
+          </div>
 
           <div class="form-group">
             <label class="form-label" for="adminEmailInput">
@@ -57,7 +55,14 @@ export function renderAdminLogin(errorMessage = '') {
                 required
                 style="padding-right: 48px;"
               />
-              <span class="material-symbols-outlined" style="position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--outline); font-size: 20px; pointer-events: none;">lock</span>
+              <button
+                type="button"
+                id="togglePasswordVisibilityBtn"
+                aria-label="Toggle password visibility"
+                style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; padding: 6px; cursor: pointer; color: var(--outline); display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: color 0.15s ease;"
+              >
+                <span class="material-symbols-outlined" id="passwordVisibilityIcon" style="font-size: 22px;">visibility</span>
+              </button>
             </div>
           </div>
 

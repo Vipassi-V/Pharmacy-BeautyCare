@@ -276,6 +276,44 @@ export function renderSkinTypeScreen(state) {
   `;
 }
 
+// Newton's Cradle Loader & Curved Card Components
+export function renderNewtonCradle(size = '52px', color = 'var(--primary, #006a60)') {
+  return `
+    <div class="newtons-cradle" style="--uib-size: ${size}; --uib-color: ${color};">
+      <div class="newtons-cradle__dot"></div>
+      <div class="newtons-cradle__dot"></div>
+      <div class="newtons-cradle__dot"></div>
+      <div class="newtons-cradle__dot"></div>
+    </div>
+  `;
+}
+
+export function renderLoadingCardHtml({ title = 'Loading Live Catalog...', subtitle = 'Connecting to Ronit Pharmacy database...', inline = true } = {}) {
+  return `
+    <div class="loading-curved-card ${inline ? 'inline' : ''}">
+      ${renderNewtonCradle()}
+      <div>
+        <div class="loading-curved-card-title">${title}</div>
+        ${subtitle ? `<div class="loading-curved-card-subtitle">${subtitle}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+export function renderLoadingOverlayHtml({ title = 'Processing...', subtitle = 'Please wait while we update your consultation' } = {}) {
+  return `
+    <div class="loading-screen-backdrop">
+      <div class="loading-curved-card">
+        ${renderNewtonCradle()}
+        <div>
+          <div class="loading-curved-card-title">${title}</div>
+          ${subtitle ? `<div class="loading-curved-card-subtitle">${subtitle}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 // 4. Skin Concern Selection Screen
 export function renderConcernsScreen(state) {
   const count = state.selectedConcernIds.length;
@@ -286,13 +324,11 @@ export function renderConcernsScreen(state) {
   let bodyContent = '';
 
   if (isLoading && concernsList.length === 0) {
-    bodyContent = `
-      <div style="text-align: center; padding: 4rem 1rem;">
-        <span class="material-symbols-outlined" style="font-size: 40px; color: var(--primary); animation: spin 1s linear infinite;">sync</span>
-        <div class="font-headline-sm" style="margin-top: 1rem; color: var(--on-surface);">Loading Live Catalog...</div>
-        <div class="font-body-sm" style="color: var(--on-surface-variant); margin-top: 4px;">Connecting to Ronit Pharmacy database...</div>
-      </div>
-    `;
+    bodyContent = renderLoadingCardHtml({
+      title: 'Loading Live Catalog...',
+      subtitle: 'Connecting to Ronit Pharmacy database and fetching clinical formulations...',
+      inline: true
+    });
   } else if (hasError && concernsList.length === 0) {
     bodyContent = `
       <div style="text-align: center; padding: 3rem 1.5rem; background: #fff5f5; border: 1.5px solid #fed7d7; border-radius: var(--radius-xl); max-width: 520px; margin: 2rem auto;">
@@ -889,19 +925,41 @@ export function renderMobilePage(state) {
         ${group.items.map(p => {
           const price = p.price || 0;
           totalEstPrice += price;
+          
+          const isRetinoidOrAcid = (p.name || '').toLowerCase().includes('retinol') || 
+                                   (p.name || '').toLowerCase().includes('salicylic') || 
+                                   (p.name || '').toLowerCase().includes('glycolic') || 
+                                   (p.name || '').toLowerCase().includes('aha') || 
+                                   (p.name || '').toLowerCase().includes('bha');
+          
+          const isSunscreen = (p.name || '').toLowerCase().includes('sunscreen') || 
+                              (p.name || '').toLowerCase().includes('spf') || 
+                              (p.name || '').toLowerCase().includes('sun block');
+
           return `
             <div style="background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; padding: 1rem; margin-bottom: 0.75rem; box-shadow: var(--shadow-level-1);">
               <div style="display: flex; gap: 12px; margin-bottom: 0.5rem;">
-                <img src="${p.image}" alt="${p.name}" style="width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'" />
-                <div style="flex: 1;">
+                <img src="${p.image}" alt="${p.name}" style="width: 68px; height: 68px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'" />
+                <div style="flex: 1; min-width: 0;">
                   <div style="font-size: 0.75rem; font-weight: 600; color: var(--secondary);">${p.brand}</div>
-                  <div style="font-size: 0.95rem; font-weight: 700; color: var(--on-surface); line-height: 1.25;">${p.name}</div>
-                  <div style="font-size: 0.95rem; font-weight: 800; color: var(--primary); margin-top: 4px;">Rs. ${price.toLocaleString()}</div>
+                  <div style="font-size: 0.95rem; font-weight: 700; color: var(--on-surface); line-height: 1.25; margin-top: 2px;">${p.name}</div>
+                  <div style="font-size: 1rem; font-weight: 800; color: var(--primary); margin-top: 4px;">Rs. ${price.toLocaleString()}</div>
                 </div>
               </div>
-              <div style="background: #f8fafc; border-left: 3px solid var(--secondary); padding: 6px 10px; font-size: 0.8rem; color: var(--on-surface-variant); border-radius: 4px; margin-top: 6px;">
-                <strong>Usage Guide:</strong> ${p.instruction}
-              </div>
+
+              ${(p.badges && p.badges.length > 0) || isRetinoidOrAcid || isSunscreen ? `
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;">
+                  ${(p.badges || []).map(b => `<span style="font-size: 0.7rem; background: #f1f5f9; color: var(--on-surface-variant); padding: 2px 6px; border-radius: 4px; font-weight: 600;">${b}</span>`).join('')}
+                  ${isRetinoidOrAcid ? '<span style="font-size: 0.7rem; background: #fff7ed; color: #c2410c; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid #ffedd5;">☀️ Sunscreen Required</span>' : ''}
+                  ${isSunscreen ? '<span style="font-size: 0.7rem; background: #f0fdf4; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: 600; border: 1px solid #dcfce7;">☀️ AM Step</span>' : ''}
+                </div>
+              ` : ''}
+
+              ${p.instruction ? `
+                <div style="background: #f8fafc; border-left: 3px solid var(--secondary); padding: 6px 10px; font-size: 0.8rem; color: var(--on-surface-variant); border-radius: 4px;">
+                  <strong>Usage Guide:</strong> ${p.instruction}
+                </div>
+              ` : ''}
             </div>
           `;
         }).join('')}
@@ -955,7 +1013,7 @@ export function renderMobilePage(state) {
             <span style="font-size: 0.75rem; background: #eff4ff; color: var(--secondary); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">
               ${skinType ? skinType.name : 'Skin Consultation'}
             </span>
-            ${concerns.map(c => `<span style="font-size: 0.75rem; background: #f0fdf4; color: var(--primary-container); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">${c.title}</span>`).join('')}
+            ${concerns.map(c => `<span style="font-size: 0.75rem; background: #f0fdf4; color: var(--primary-container); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">${c.title || c.name}</span>`).join('')}
           </div>
 
           <div style="margin-top: 10px; background: #f0fdf4; border: 1px dashed var(--primary-fixed-dim); border-radius: 8px; padding: 8px 10px; text-align: center; font-size: 0.8rem; color: var(--primary-container); font-weight: 600;">
@@ -966,6 +1024,41 @@ export function renderMobilePage(state) {
         ${hasSevere ? `
           <div style="background: var(--warning-wash); border: 1px solid #fcd34d; border-left: 4px solid var(--warning-stripe); padding: 0.85rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #78350f; margin-bottom: 1rem;">
             <strong>⚠️ Pharmacist Attention:</strong> ${severeWarning}
+          </div>
+        ` : ''}
+
+        <!-- Targeted Skin Concerns & Clinical Analysis -->
+        ${concerns.length > 0 ? `
+          <div style="background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; padding: 1rem; margin-bottom: 1rem; box-shadow: var(--shadow-level-1);">
+            <div style="font-size: 0.9rem; font-weight: 700; color: var(--on-surface); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px;">
+              <span class="material-symbols-outlined" style="font-size: 18px; color: var(--primary);">dermatology</span>
+              Clinical Skin Analysis & Concerns (${concerns.length})
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+              ${concerns.map(c => `
+                <div style="border-top: 1px solid #f1f5f9; padding-top: 0.75rem;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      ${c.image ? `<img src="${c.image}" alt="${c.title || c.name}" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'" />` : ''}
+                      <div>
+                        <div style="font-size: 0.875rem; font-weight: 700; color: var(--on-surface);">${c.title || c.name}</div>
+                        ${c.nepaliTitle || c.nepali_title ? `<div style="font-size: 0.75rem; color: var(--secondary); font-weight: 600;">${c.nepaliTitle || c.nepali_title}</div>` : ''}
+                      </div>
+                    </div>
+                    ${(c.isSevere || c.is_severe) ? `
+                      <span style="font-size: 0.7rem; background: var(--warning-wash); color: var(--tertiary); padding: 2px 6px; border-radius: 9999px; font-weight: 700; border: 1px solid #fcd34d; flex-shrink: 0;">
+                        Severe
+                      </span>
+                    ` : ''}
+                  </div>
+                  ${c.description ? `
+                    <div style="font-size: 0.8rem; color: var(--on-surface-variant); line-height: 1.45; margin-top: 6px; background: #f8fafc; padding: 6px 10px; border-radius: 6px;">
+                      ${c.description}
+                    </div>
+                  ` : ''}
+                </div>
+              `).join('')}
+            </div>
           </div>
         ` : ''}
 

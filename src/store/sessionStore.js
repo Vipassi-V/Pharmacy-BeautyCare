@@ -170,6 +170,46 @@ class SessionStore {
     } catch {}
   }
 
+  // Generates complete share URL with encoded state parameters for 100% cross-device sync
+  getMobileShareUrl() {
+    const base = window.location.origin;
+    const params = new URLSearchParams();
+    params.set('session', this.sessionId);
+    params.set('view', 'mobile');
+    if (this.selectedSkinTypeId) params.set('st', this.selectedSkinTypeId);
+    if (this.selectedConcernIds.length > 0) params.set('c', this.selectedConcernIds.join(','));
+    if (this.customer.firstName) params.set('fn', this.customer.firstName);
+    if (this.customer.lastName) params.set('ln', this.customer.lastName);
+    return `${base}/?${params.toString()}`;
+  }
+
+  // Synchronously parse session parameters from URL upon QR scan
+  loadSessionFromUrl(urlParams) {
+    if (!urlParams) return;
+    const session = urlParams.get('session');
+    if (session) this.sessionId = session;
+
+    const fn = urlParams.get('fn');
+    const ln = urlParams.get('ln');
+    if (fn || ln) {
+      this.customer.firstName = fn || this.customer.firstName;
+      this.customer.lastName = ln || this.customer.lastName;
+    }
+
+    const st = urlParams.get('st');
+    if (st) {
+      this.selectedSkinTypeId = st;
+    }
+
+    const c = urlParams.get('c');
+    if (c) {
+      this.selectedConcernIds = c.split(',').filter(Boolean);
+    }
+
+    this.saveToLocalStorage();
+    this.notify();
+  }
+
   async loadSessionFromQuery(sessionId) {
     if (!sessionId) return;
     this.sessionId = sessionId;
@@ -200,13 +240,13 @@ class SessionStore {
       if (data && data.recommendation_snapshot) {
         const snap = data.recommendation_snapshot;
         this.customer = {
-          firstName: data.first_name || 'Patient',
-          lastName: data.surname || ''
+          firstName: data.first_name || this.customer.firstName || 'Patient',
+          lastName: data.surname || this.customer.lastName || ''
         };
-        if (snap.concerns && Array.isArray(snap.concerns)) {
+        if (snap.concerns && Array.isArray(snap.concerns) && this.selectedConcernIds.length === 0) {
           this.selectedConcernIds = snap.concerns.map(c => c.id).filter(Boolean);
         }
-        if (snap.skinType && snap.skinType.id) {
+        if (snap.skinType && snap.skinType.id && !this.selectedSkinTypeId) {
           this.selectedSkinTypeId = snap.skinType.id;
         }
         this.notify();

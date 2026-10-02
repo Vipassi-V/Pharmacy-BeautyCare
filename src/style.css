@@ -1332,6 +1332,131 @@ html, body {
 }
 
 /* ==========================================================================
+   Newton's Cradle Loading Animation (Uiverse.io by dovatgabriel)
+   ========================================================================== */
+.newtons-cradle {
+  --uib-size: 52px;
+  --uib-speed: 1.2s;
+  --uib-color: var(--primary, #006a60);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--uib-size);
+  height: var(--uib-size);
+  margin: 0 auto;
+}
+
+.newtons-cradle__dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 25%;
+  transform-origin: center top;
+}
+
+.newtons-cradle__dot::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 25%;
+  border-radius: 50%;
+  background-color: var(--uib-color);
+  box-shadow: 0 2px 6px rgba(0, 106, 96, 0.25);
+}
+
+.newtons-cradle__dot:first-child {
+  animation: swing var(--uib-speed) linear infinite;
+}
+
+.newtons-cradle__dot:last-child {
+  animation: swing2 var(--uib-speed) linear infinite;
+}
+
+@keyframes swing {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+  25% {
+    transform: rotate(70deg);
+    animation-timing-function: ease-in;
+  }
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: linear;
+  }
+}
+
+@keyframes swing2 {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: linear;
+  }
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+  75% {
+    transform: rotate(-70deg);
+    animation-timing-function: ease-in;
+  }
+}
+
+/* Curved Rectangle Loading Card & Overlay */
+.loading-screen-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.loading-curved-card {
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 28px;
+  padding: 2.25rem 2.5rem;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 24px 48px -12px rgba(0, 106, 96, 0.2), 0 0 0 1.5px rgba(0, 106, 96, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin: 0 auto;
+}
+
+.loading-curved-card.inline {
+  margin: 2.5rem auto;
+  box-shadow: 0 16px 36px -10px rgba(0, 106, 96, 0.12), 0 0 0 1.5px rgba(0, 106, 96, 0.08);
+}
+
+.loading-curved-card-title {
+  font-family: var(--font-headline);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--on-surface, #1e293b);
+  margin-bottom: 4px;
+}
+
+.loading-curved-card-subtitle {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--on-surface-variant, #64748b);
+  line-height: 1.45;
+}
+
+/* ==========================================================================
    Accessibility: Prefers-Reduced-Motion Guard
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
