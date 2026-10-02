@@ -3,6 +3,7 @@
 // Uses Vite environment variables VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.
 
 import { createClient } from '@supabase/supabase-js';
+import { uploadToCloudinary, deleteCloudinaryImage, extractCloudinaryPublicId } from './cloudinaryClient.js';
 
 const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (typeof process !== 'undefined' && process.env ? process.env : {});
 const supabaseUrl = env.VITE_SUPABASE_URL;
@@ -30,18 +31,18 @@ export async function verifyAdminAuth() {
 }
 
 /**
- * Upload a processed WebP image to Supabase Storage with deterministic versioned path.
+ * Upload an image to Cloudinary (formerly Supabase Storage) with folder organization.
  * Paths follow:
  * - products/<product-id>/image-v<version>.webp
  * - skin-problems/<problem-id>/image-v<version>.webp
  * - pharmacy/logo-v<version>.webp
  * 
- * @param {Blob|File} file - Processed WebP file object
- * @param {string} destinationPath - Target path inside the bucket (e.g. `products/uuid/image-v1.webp`)
- * @param {string} bucketName - Bucket name (default: 'product-images')
+ * @param {Blob|File} file - Processed image file object
+ * @param {string} destinationPath - Target path (e.g. `products/uuid/image-v1.webp`)
+ * @param {string} bucketName - Target bucket/folder hint (default: 'products')
  * @returns {Promise<{ publicUrl: string|null, path: string|null, error: Error|null }>}
  */
-export async function uploadVersionedImage(file, destinationPath, bucketName = 'product-images') {
+export async function uploadVersionedImage(file, destinationPath, bucketName = 'products') {
   try {
     if (!file) throw new Error('No image file provided for upload.');
     if (!destinationPath) throw new Error('Destination storage path is required.');
@@ -52,21 +53,16 @@ export async function uploadVersionedImage(file, destinationPath, bucketName = '
       throw new Error('Unauthorized: You must be logged in as an active administrator to upload images.');
     }
 
-    const { data, error } = await supabase.storage
-      .from(bucketName)
-      .upload(destinationPath, file, {
-        cacheControl: '3600',
-        upsert: true,
-        contentType: 'image/webp'
-      });
+    // Determine subfolder and public_id from destinationPath (e.g. "products/123/image-v1.webp")
+    let folder = 'products';
+    if (destinationPath.startsWith('skin-problems/')) folder = 'skin-problems';
+    else if (destinationPath.startsWith('pharmacy/')) folder = 'pharmacy';
+    else if (bucketName === 'pharmacy-assets') folder = 'pharmacy';
+    else if (bucketName === 'product-images') folder = 'products';
 
-    if (error) throw error;
+    const customPublicId = destinationPath;
 
-    const { data: urlData } = supabase.storage
-      .from(bucketName)
-      .getPublicUrl(data.path);
-
-    return { publicUrl: urlData.publicUrl, path: data.path, error: null };
+    return await uploadToCloudinary(file, folder, customPublicId);
   } catch (err) {
     console.warn(`Storage upload error for "${destinationPath}":`, err);
     return { publicUrl: null, path: null, error: err };
@@ -84,13 +80,16 @@ export async function uploadImage(file, bucketName = 'product-images', folder = 
 }
 
 /**
- * Extract storage relative path from a full URL or return the path if already relative.
+ * Extract storage relative path or Cloudinary public_id from a full URL.
  * @param {string} urlOrPath 
  * @param {string} bucketName 
  * @returns {string|null}
  */
 export function extractStoragePath(urlOrPath, bucketName = 'product-images') {
   if (!urlOrPath || typeof urlOrPath !== 'string') return null;
+  if (urlOrPath.includes('cloudinary.com')) {
+    return extractCloudinaryPublicId(urlOrPath);
+  }
   if (!urlOrPath.startsWith('http://') && !urlOrPath.startsWith('https://')) {
     return urlOrPath;
   }
@@ -103,18 +102,21 @@ export function extractStoragePath(urlOrPath, bucketName = 'product-images') {
 }
 
 /**
- * Delete an image from Supabase Storage by its path or public URL.
- * Only deletes when authenticated.
- * @param {string} urlOrPath - The file path or public URL in the bucket
- * @param {string} bucketName - Bucket name (default: 'product-images')
+ * Delete an image by its path or public URL (routes to Cloudinary cleaner).
+ * @param {string} urlOrPath - The file path or public URL
+ * @param {string} bucketName - Bucket/folder name
  * @returns {Promise<{ success: boolean, error: Error|null }>}
  */
 export async function deleteImage(urlOrPath, bucketName = 'product-images') {
   try {
+    if (urlOrPath && urlOrPath.includes('cloudinary.com')) {
+      return await deleteCloudinaryImage(urlOrPath);
+    }
+
     const cleanPath = extractStoragePath(urlOrPath, bucketName);
     if (!cleanPath) return { success: true, error: null };
 
-    // Don't attempt to delete external unsplash/placeholder URLs from Supabase
+    // Don't attempt to delete external unsplash/placeholder URLs
     if (urlOrPath.startsWith('http') && !urlOrPath.includes(supabaseUrl) && !urlOrPath.includes(bucketName)) {
       return { success: true, error: null };
     }
@@ -138,3 +140,4 @@ export async function deleteImage(urlOrPath, bucketName = 'product-images') {
 }
 
 export default supabase;
+

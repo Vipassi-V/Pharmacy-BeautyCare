@@ -36,6 +36,7 @@ class SessionStore {
   }
 
   notify() {
+    this.saveToLocalStorage();
     this.listeners.forEach(fn => fn(this.getState()));
   }
 
@@ -81,6 +82,10 @@ class SessionStore {
       this.selectedConcernIds.push(concernId);
     }
     this.notify();
+  }
+
+  toggleSelectConcern(concernId) {
+    this.toggleConcern(concernId);
   }
 
   toggleExpandConcern(concernId) {
@@ -148,29 +153,97 @@ class SessionStore {
     return [];
   }
 
-  // Get recommended products without duplicate entries across categories
-  // Matching strictly through product_skin_problems junction relationships
+  // Save session state to localStorage for offline persistence across tabs
+  saveToLocalStorage() {
+    try {
+      const payload = {
+        sessionId: this.sessionId,
+        customer: this.customer,
+        selectedSkinTypeId: this.selectedSkinTypeId,
+        selectedConcernIds: this.selectedConcernIds,
+        createdAt: this.createdAt
+      };
+      localStorage.setItem('rp_current_session', JSON.stringify(payload));
+      if (this.sessionId) {
+        localStorage.setItem(`rp_session_${this.sessionId}`, JSON.stringify(payload));
+      }
+    } catch {}
+  }
+
+  async loadSessionFromQuery(sessionId) {
+    if (!sessionId) return;
+    this.sessionId = sessionId;
+
+    // 1. Check localStorage first
+    try {
+      const stored = localStorage.getItem(`rp_session_${sessionId}`) || localStorage.getItem('rp_current_session');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.selectedConcernIds) {
+          this.customer = parsed.customer || this.customer;
+          this.selectedSkinTypeId = parsed.selectedSkinTypeId || null;
+          this.selectedConcernIds = parsed.selectedConcernIds || [];
+          this.notify();
+          return;
+        }
+      }
+    } catch {}
+
+    // 2. Fetch from Supabase database sessions table if online
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .or(`id.eq.${sessionId},id.ilike.${sessionId}%`)
+        .maybeSingle();
+
+      if (data && data.recommendation_snapshot) {
+        const snap = data.recommendation_snapshot;
+        this.customer = {
+          firstName: data.first_name || 'Patient',
+          lastName: data.surname || ''
+        };
+        if (snap.concerns && Array.isArray(snap.concerns)) {
+          this.selectedConcernIds = snap.concerns.map(c => c.id).filter(Boolean);
+        }
+        if (snap.skinType && snap.skinType.id) {
+          this.selectedSkinTypeId = snap.skinType.id;
+        }
+        this.notify();
+      }
+    } catch (err) {
+      console.warn('Error loading session from Supabase:', err);
+    }
+  }
+
+  // Get recommended products matching selected skin concerns & skin type
+  // Guarantees exact matches without dumping unselected catalog items
   getRecommendedProducts() {
     const skinType = this.selectedSkinTypeId;
-    const concernIds = this.selectedConcernIds;
+    const concernIds = this.selectedConcernIds || [];
     const activeProducts = this.getActiveProducts();
     const activeCategories = this.getActiveCategories();
 
-    // 1. Filter active products matching selected concerns or skin type
+    // 1. Filter active products strictly matching the selected skin concerns and skin type
     const matched = activeProducts.filter(p => {
       const suitableConcerns = p.suitableConcerns || [];
-      const suitableTypes = p.suitableSkinTypes || ['dry', 'oily', 'combination', 'sensitive', 'normal'];
+      const suitableTypes = p.suitableSkinTypes || [];
       
-      const matchesSkin = !skinType || suitableTypes.includes(skinType);
-      
-      // If customer selected specific concerns, match products mapped via product_skin_problems
+      const matchesSkin = !skinType || suitableTypes.length === 0 || suitableTypes.includes(skinType);
+
       if (concernIds.length > 0) {
+        // Must match at least one selected concern
         const matchesConcern = suitableConcerns.some(c => concernIds.includes(c));
-        return matchesConcern;
+        return matchesConcern && matchesSkin;
       }
-      
-      // If no concerns selected, fallback to skin-type match
-      return matchesSkin;
+
+      // If customer selected NO concerns, show products matching skin type explicitly
+      if (skinType && suitableTypes.length > 0) {
+        return suitableTypes.includes(skinType);
+      }
+
+      // Do NOT fall back to dumping all products if no concerns or skin type selected
+      return false;
     });
 
     // 2. Group by active category, guaranteeing each product is rendered exactly once
@@ -192,17 +265,12 @@ class SessionStore {
       if (grouped[catId]) {
         grouped[catId].items.push(prod);
       } else {
-        // Match by finding category in active categories
         const matchingCat = activeCategories.find(c => c.id === catId);
         if (matchingCat) {
           if (!grouped[matchingCat.id]) {
             grouped[matchingCat.id] = { category: matchingCat, items: [] };
           }
           grouped[matchingCat.id].items.push(prod);
-        } else if (activeCategories.length > 0) {
-          // Fallback to first available category if unassigned
-          const firstCatId = activeCategories[0].id;
-          grouped[firstCatId].items.push(prod);
         }
       }
     });

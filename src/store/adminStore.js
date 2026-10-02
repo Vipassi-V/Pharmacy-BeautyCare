@@ -5,6 +5,8 @@ import { skinTypes, skinConcerns as initialConcerns, productCategories as initia
 import { supabase, uploadImage, uploadVersionedImage, deleteImage, extractStoragePath, verifyAdminAuth } from '../lib/supabaseClient.js';
 import { processClientImage, verifyImageLoads } from '../lib/imageProcessor.js';
 
+const env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (typeof process !== 'undefined' && process.env ? process.env : {});
+
 class AdminStore {
   constructor() {
     this.isAuthenticated = false;
@@ -53,13 +55,19 @@ class AdminStore {
     // Keep session in sync across tabs or token refresh
     supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
+        const wasAuthed = this.isAuthenticated;
         this.isAuthenticated = false;
         this.currentTab = 'dashboard';
-        this.fetchSettings();
-        this.notify();
+        if (wasAuthed) {
+          this.fetchSettings();
+          this.notify();
+        }
       } else if (event === 'SIGNED_IN' && session?.user) {
+        const wasAuthed = this.isAuthenticated;
         this.isAuthenticated = true;
-        this.refreshAll();
+        if (!wasAuthed) {
+          this.refreshAll();
+        }
       }
     });
 
@@ -139,10 +147,8 @@ class AdminStore {
           if (data.logo_path.startsWith('http://') || data.logo_path.startsWith('https://')) {
             logoUrl = data.logo_path;
           } else {
-            const { data: urlData } = supabase.storage
-              .from('pharmacy-assets')
-              .getPublicUrl(data.logo_path);
-            logoUrl = urlData?.publicUrl ? `${urlData.publicUrl}?v=${data.logo_version || 1}` : null;
+            const cloud = env.VITE_CLOUDINARY_CLOUD_NAME || 'rrkmdfkb';
+            logoUrl = `https://res.cloudinary.com/${cloud}/image/upload/f_auto,q_auto/${data.logo_path}?v=${data.logo_version || 1}`;
           }
         }
 
@@ -572,11 +578,22 @@ class AdminStore {
     const nextVersion = (currentProb?.image_version || 0) + 1;
     const destPath = `skin-problems/${targetId}/image-v${nextVersion}.webp`;
 
-    if (onProgress) onProgress({ phase: 'Uploading WebP to Supabase Storage...', progress: 75 });
+    if (onProgress) onProgress({ phase: 'Uploading image to Cloudinary...', progress: 75 });
     const uploadRes = await uploadVersionedImage(processed.file, destPath, 'product-images');
 
     if (uploadRes.error) {
-      throw uploadRes.error;
+      console.warn('Cloudinary skin problem image upload failed, using local WebP dataUrl fallback:', uploadRes.error.message);
+      const localUrl = processed.dataUrl || processed.previewUrl;
+      if (onProgress) onProgress({ phase: 'Processed locally (storage offline)', progress: 100 });
+      return {
+        publicUrl: localUrl,
+        path: null,
+        version: nextVersion,
+        width: processed.width,
+        height: processed.height,
+        sizeBytes: processed.sizeBytes,
+        isLocalFallback: true
+      };
     }
 
     if (onProgress) onProgress({ phase: 'Verifying image accessibility...', progress: 90 });
@@ -604,7 +621,8 @@ class AdminStore {
       version: nextVersion,
       width: processed.width,
       height: processed.height,
-      sizeBytes: processed.sizeBytes
+      sizeBytes: processed.sizeBytes,
+      isLocalFallback: false
     };
   }
 
@@ -837,11 +855,22 @@ class AdminStore {
     const nextVersion = (currentProd?.image_version || 0) + 1;
     const destPath = `products/${targetId}/image-v${nextVersion}.webp`;
 
-    if (onProgress) onProgress({ phase: 'Uploading WebP to Supabase Storage...', progress: 75 });
+    if (onProgress) onProgress({ phase: 'Uploading image to Cloudinary...', progress: 75 });
     const uploadRes = await uploadVersionedImage(processed.file, destPath, 'product-images');
 
     if (uploadRes.error) {
-      throw uploadRes.error;
+      console.warn('Cloudinary product image upload failed, using local WebP dataUrl fallback:', uploadRes.error.message);
+      const localUrl = processed.dataUrl || processed.previewUrl;
+      if (onProgress) onProgress({ phase: 'Processed locally (storage offline)', progress: 100 });
+      return {
+        publicUrl: localUrl,
+        path: null,
+        version: nextVersion,
+        width: processed.width,
+        height: processed.height,
+        sizeBytes: processed.sizeBytes,
+        isLocalFallback: true
+      };
     }
 
     if (onProgress) onProgress({ phase: 'Verifying image accessibility...', progress: 90 });
@@ -869,7 +898,8 @@ class AdminStore {
       version: nextVersion,
       width: processed.width,
       height: processed.height,
-      sizeBytes: processed.sizeBytes
+      sizeBytes: processed.sizeBytes,
+      isLocalFallback: false
     };
   }
 
@@ -1005,11 +1035,30 @@ class AdminStore {
     const nextVersion = (this.settings.logoVersion || 1) + 1;
     const destPath = `pharmacy/logo-v${nextVersion}.webp`;
 
-    if (onProgress) onProgress({ phase: 'Uploading WebP logo to Supabase Storage (pharmacy-assets)...', progress: 75 });
+    if (onProgress) onProgress({ phase: 'Uploading logo image to Cloudinary...', progress: 75 });
     const uploadRes = await uploadVersionedImage(processed.file, destPath, 'pharmacy-assets');
 
     if (uploadRes.error) {
-      throw uploadRes.error;
+      console.warn('Cloudinary logo upload failed, using local WebP dataUrl fallback:', uploadRes.error.message);
+      const localUrl = processed.dataUrl || processed.previewUrl;
+      this.settings = {
+        ...this.settings,
+        logoUrl: localUrl,
+        logoPath: null,
+        logoVersion: nextVersion
+      };
+      this.save('rp_settings', this.settings);
+      this.notify();
+      if (onProgress) onProgress({ phase: 'Logo processed locally (storage offline)', progress: 100 });
+      return {
+        publicUrl: localUrl,
+        path: null,
+        version: nextVersion,
+        width: processed.width,
+        height: processed.height,
+        sizeBytes: processed.sizeBytes,
+        isLocalFallback: true
+      };
     }
 
     if (onProgress) onProgress({ phase: 'Verifying logo display...', progress: 90 });
@@ -1210,14 +1259,37 @@ class AdminStore {
       if (newSettings.logoPath !== undefined) payload.logo_path = newSettings.logoPath;
       if (newSettings.logoVersion !== undefined) payload.logo_version = newSettings.logoVersion;
 
-      const { error } = await supabase
-        .from('app_settings')
-        .upsert(payload, { onConflict: 'setting_key' });
+      // Resilient Supabase upsert: automatically strips any column not yet added to DB table schema
+      let currentPayload = { ...payload };
+      let maxAttempts = 10;
+      let lastError = null;
 
-      if (error) {
-        console.error('Supabase update app_settings error:', error);
-        this.showToast(`Failed to save settings: ${error.message}`, 'error');
-        return { success: false, error: error.message };
+      while (maxAttempts > 0) {
+        const { error } = await supabase
+          .from('app_settings')
+          .upsert(currentPayload, { onConflict: 'setting_key' });
+
+        if (!error) {
+          lastError = null;
+          break;
+        }
+
+        // Detect missing column error from PostgREST schema cache
+        const match = error.message && error.message.match(/Could not find the '([^']+)' column/i);
+        if (match && match[1] && currentPayload[match[1]] !== undefined) {
+          console.warn(`Stripping missing column '${match[1]}' from Supabase app_settings payload and retrying...`);
+          delete currentPayload[match[1]];
+          maxAttempts--;
+        } else {
+          lastError = error;
+          break;
+        }
+      }
+
+      if (lastError) {
+        console.error('Supabase update app_settings error:', lastError);
+        this.showToast(`Failed to save settings: ${lastError.message}`, 'error');
+        return { success: false, error: lastError.message };
       }
 
       this.settings = { ...this.settings, ...newSettings };

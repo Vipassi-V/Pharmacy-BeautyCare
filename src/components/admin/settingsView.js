@@ -42,7 +42,7 @@ export function renderSettingsView(logoUploadState = null) {
               </div>
 
               <div style="margin-top: 6px; font-size: 0.75rem; color: var(--outline); display: flex; justify-content: space-between;">
-                <span>Bucket: <code>pharmacy-assets</code> &bull; <code>${settings.logoPath || 'No logo stored'}</code></span>
+              <span>Cloudinary: <code>${settings.logoPath || 'No logo stored'}</code></span>
                 ${settings.logoVersion ? `<span>v${settings.logoVersion}</span>` : ''}
               </div>
             </div>
@@ -56,7 +56,7 @@ export function renderSettingsView(logoUploadState = null) {
                 </div>
 
                 <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 1rem;">
-                  <input type="file" id="pharmacyLogoFileInput" accept="image/jpeg, image/jpg, image/png, image/webp" style="display: none;" />
+                  <input type="file" id="pharmacyLogoFileInput" accept="image/*" style="display: none;" />
                   
                   <button type="button" class="btn-primary" id="selectLogoFileBtn" style="min-height: 44px; padding: 0 1.25rem; font-size: 0.88rem;">
                     <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
@@ -74,7 +74,7 @@ export function renderSettingsView(logoUploadState = null) {
                 <!-- Accepted Formats Notice -->
                 <div style="background: #eff4ff; border-radius: var(--radius-md); padding: 8px 12px; font-size: 0.75rem; color: var(--secondary); display: flex; align-items: center; gap: 6px;">
                   <span class="material-symbols-outlined" style="font-size: 16px;">info</span>
-                  <span>Accepted formats: <strong>JPEG, PNG, WebP</strong> (auto-converted to WebP, &le; 150 KB)</span>
+                  <span>Accepted formats: <strong>JPEG, PNG, WebP, HEIC, BMP, and more</strong> (auto-converted to WebP, &le; 150 KB)</span>
                 </div>
               </div>
 
@@ -111,25 +111,25 @@ export function renderSettingsView(logoUploadState = null) {
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
-                <label class="form-label" for="settingPharmacyName">Pharmacy Business Name</label>
-                <input type="text" id="settingPharmacyName" class="form-input setting-input" value="${settings.pharmacyName || ''}" required />
+                <label class="form-label" for="settingPharmacyName">Pharmacy Business Name <span style="color: var(--error);">*</span></label>
+                <input type="text" id="settingPharmacyName" class="form-input setting-input" value="${settings.pharmacyName || ''}" required placeholder="e.g. Ronit Pharmacy & Beauty Care" />
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="settingLeadPharmacist">Attending Pharmacist</label>
-                <input type="text" id="settingLeadPharmacist" class="form-input setting-input" value="${settings.leadPharmacist || ''}" required />
+                <label class="form-label" for="settingLeadPharmacist">Attending Pharmacist <span style="color: var(--error);">*</span></label>
+                <input type="text" id="settingLeadPharmacist" class="form-input setting-input" value="${settings.leadPharmacist || ''}" required placeholder="e.g. Mr. Ronit Shrestha" />
               </div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
               <div class="form-group">
-                <label class="form-label" for="settingLocation">City & District Location</label>
-                <input type="text" id="settingLocation" class="form-input setting-input" value="${settings.location || ''}" required />
+                <label class="form-label" for="settingLocation">City & District Location <span style="color: var(--error);">*</span></label>
+                <input type="text" id="settingLocation" class="form-input setting-input" value="${settings.location || ''}" required placeholder="e.g. Palpa, Lumbini Province" />
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="settingPhone">Contact Phone Number</label>
-                <input type="text" id="settingPhone" class="form-input setting-input" value="${settings.phone || ''}" required />
+                <label class="form-label" for="settingPhone">Contact Phone Number <span style="color: var(--error);">*</span></label>
+                <input type="text" id="settingPhone" class="form-input setting-input" value="${settings.phone || ''}" required placeholder="e.g. 075-123456" />
               </div>
             </div>
 
@@ -147,13 +147,13 @@ export function renderSettingsView(logoUploadState = null) {
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="settingWelcomeTitle">Tablet Kiosk Welcome Header</label>
-              <input type="text" id="settingWelcomeTitle" class="form-input setting-input" value="${settings.welcomeTitle || ''}" required />
+              <label class="form-label" for="settingWelcomeTitle">Tablet Kiosk Welcome Header <span style="color: var(--error);">*</span></label>
+              <input type="text" id="settingWelcomeTitle" class="form-input setting-input" value="${settings.welcomeTitle || ''}" required placeholder="e.g. Clinical Skincare Consultation" />
             </div>
 
             <div class="form-group">
-              <label class="form-label" for="settingWelcomeSubtitle">Welcome Subtitle</label>
-              <input type="text" id="settingWelcomeSubtitle" class="form-input setting-input" value="${settings.welcomeSubtitle || ''}" required />
+              <label class="form-label" for="settingWelcomeSubtitle">Welcome Subtitle <span style="color: var(--error);">*</span></label>
+              <input type="text" id="settingWelcomeSubtitle" class="form-input setting-input" value="${settings.welcomeSubtitle || ''}" required placeholder="e.g. Personalized clinical skincare recommendations..." />
             </div>
 
             <div class="form-group">

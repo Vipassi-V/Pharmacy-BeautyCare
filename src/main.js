@@ -37,6 +37,16 @@ let currentImportState = null;
 let activeEditingItem = null;
 let logoUploadState = null;
 
+let isRenderPending = false;
+export function scheduleRender() {
+  if (isRenderPending) return;
+  isRenderPending = true;
+  requestAnimationFrame(() => {
+    isRenderPending = false;
+    render();
+  });
+}
+
 function render() {
   const urlParams = new URLSearchParams(window.location.search);
   const isExplicitAdmin = urlParams.get('view') === 'admin' || window.location.pathname.includes('/admin');
@@ -221,11 +231,22 @@ function bindKioskEvents() {
 
   document.getElementById('startConsultationBtn')?.addEventListener('click', () => sessionStore.setStep(2));
 
+  // Anonymous guest consultation mode
+  document.getElementById('continueAsGuestBtn')?.addEventListener('click', () => {
+    sessionStore.setCustomerName('Guest', 'Patient');
+    sessionStore.setStep(3);
+  });
+
   const nameForm = document.getElementById('nameEntryForm');
   nameForm?.addEventListener('submit', (e) => {
     e.preventDefault();
-    const first = document.getElementById('firstNameInput').value;
-    const last = document.getElementById('lastNameInput').value;
+    const consent = document.getElementById('disclaimerConsentCheckbox')?.checked;
+    if (consent === false) {
+      alert('Please acknowledge the clinical disclaimer before continuing.');
+      return;
+    }
+    const first = document.getElementById('firstNameInput')?.value || '';
+    const last = document.getElementById('lastNameInput')?.value || '';
     if (first.trim() && last.trim()) {
       sessionStore.setCustomerName(first, last);
       sessionStore.setStep(3);
@@ -246,31 +267,85 @@ function bindKioskEvents() {
     if (sessionStore.getState().selectedSkinTypeId) sessionStore.setStep(4);
   });
 
+  // Catalog retry button handler
+  document.getElementById('retryCatalogBtn')?.addEventListener('click', async () => {
+    await adminStore.fetchSkinProblems();
+    await adminStore.fetchProducts();
+  });
+
+  // Skin concern cards selection & expansion
   document.querySelectorAll('.concern-card[data-concern-id]').forEach(card => {
     const concernId = card.getAttribute('data-concern-id');
-    card.querySelector('.concern-body')?.addEventListener('click', () => sessionStore.toggleExpandConcern(concernId));
+
     card.querySelector('.btn-add-concern')?.addEventListener('click', (e) => {
       e.stopPropagation();
-      sessionStore.toggleSelectConcern(concernId);
+      sessionStore.toggleConcern(concernId);
+    });
+
+    card.querySelector('.expand-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sessionStore.toggleExpandConcern(concernId);
+    });
+
+    card.addEventListener('click', (e) => {
+      if (!e.target.closest('.expand-toggle') && !e.target.closest('.btn-add-concern')) {
+        sessionStore.toggleConcern(concernId);
+      }
     });
   });
 
   document.getElementById('backToSkinTypeBtn')?.addEventListener('click', () => sessionStore.setStep(3));
-  document.getElementById('continueToReviewBtn')?.addEventListener('click', () => {
+
+  // Proceed to review selection
+  const proceedToReviewBtn = document.getElementById('proceedToReviewBtn') || document.getElementById('continueToReviewBtn');
+  proceedToReviewBtn?.addEventListener('click', () => {
     if (sessionStore.getState().selectedConcernIds.length > 0) sessionStore.setStep(5);
   });
 
-  document.getElementById('backToConcernsBtn')?.addEventListener('click', () => sessionStore.setStep(4));
-  document.getElementById('confirmRegimenBtn')?.addEventListener('click', () => sessionStore.setStep(6));
+  // Review step edit handlers
+  document.getElementById('editNameBtn')?.addEventListener('click', () => sessionStore.setStep(2));
+  document.getElementById('editSkinTypeBtn')?.addEventListener('click', () => sessionStore.setStep(3));
+  document.getElementById('editConcernsBtn')?.addEventListener('click', () => sessionStore.setStep(4));
 
-  document.getElementById('showQRBtn')?.addEventListener('click', () => sessionStore.setQRModal(true));
+  document.getElementById('backToConcernsBtn')?.addEventListener('click', () => sessionStore.setStep(4));
+
+  // Generate recommendations handler
+  const generateRecommendationsBtn = document.getElementById('generateRecommendationsBtn') || document.getElementById('confirmRegimenBtn');
+  generateRecommendationsBtn?.addEventListener('click', () => sessionStore.setStep(6));
+
+  // Recommendation page action buttons
+  const openQRBtn = document.getElementById('openQRModalBtn') || document.getElementById('showQRBtn');
+  openQRBtn?.addEventListener('click', () => sessionStore.setQRModal(true));
+
+  document.getElementById('previewMobilePageBtn')?.addEventListener('click', () => {
+    const state = sessionStore.getState();
+    window.open(`/?session=${state.sessionId}&view=mobile`, '_blank');
+  });
+
+  // QR Modal buttons
   document.getElementById('closeQRModalBtn')?.addEventListener('click', () => sessionStore.setQRModal(false));
   document.getElementById('qrModalBackdrop')?.addEventListener('click', (e) => {
     if (e.target.id === 'qrModalBackdrop') sessionStore.setQRModal(false);
   });
 
-  document.getElementById('finishSessionBtn')?.addEventListener('click', () => sessionStore.setStep(9));
-  document.getElementById('resetKioskImmediateBtn')?.addEventListener('click', () => sessionStore.clearSession());
+  document.getElementById('directMobileOpenBtn')?.addEventListener('click', () => {
+    const state = sessionStore.getState();
+    window.open(`/?session=${state.sessionId}&view=mobile`, '_blank');
+  });
+
+  const doneQRBtn = document.getElementById('doneWithQRBtn') || document.getElementById('finishSessionBtn');
+  doneQRBtn?.addEventListener('click', () => {
+    sessionStore.setQRModal(false);
+    sessionStore.setStep(9);
+  });
+
+  // End session screen buttons
+  const returnHomeBtn = document.getElementById('returnHomeBtn') || document.getElementById('resetKioskImmediateBtn');
+  returnHomeBtn?.addEventListener('click', () => sessionStore.clearSession());
+
+  document.getElementById('exitMobileViewBtn')?.addEventListener('click', () => {
+    window.location.href = window.location.origin;
+  });
 }
 
 // --- Mobile Event Bindings ---
@@ -350,16 +425,26 @@ function bindAdminEvents() {
     });
   });
 
-  // Modal Backdrop dismiss
+  // Modal Backdrop dismiss — handles both ID variants (generic modal + legacy)
   document.getElementById('confirmModalBackdrop')?.addEventListener('click', (e) => {
     if (e.target.id === 'confirmModalBackdrop') adminStore.closeModal();
   });
+  document.getElementById('genericModalBackdrop')?.addEventListener('click', (e) => {
+    if (e.target.id === 'genericModalBackdrop') adminStore.closeModal();
+  });
+
+  // Cancel button
   document.getElementById('cancelModalBtn')?.addEventListener('click', () => adminStore.closeModal());
-  document.getElementById('confirmActionBtn')?.addEventListener('click', () => {
+  document.getElementById('genericModalCancelBtn')?.addEventListener('click', () => adminStore.closeModal());
+
+  // Confirm button
+  const handleModalConfirm = () => {
     if (adminStore.activeModal && typeof adminStore.activeModal.onConfirm === 'function') {
       adminStore.activeModal.onConfirm();
     }
-  });
+  };
+  document.getElementById('confirmActionBtn')?.addEventListener('click', handleModalConfirm);
+  document.getElementById('genericModalConfirmBtn')?.addEventListener('click', handleModalConfirm);
 
   // --- Categories Events ---
   document.getElementById('openAddCategoryModalBtn')?.addEventListener('click', () => {
@@ -567,8 +652,14 @@ function bindAdminEvents() {
       if (res.publicUrl) {
         const urlInput = document.getElementById('probFormImageUrl');
         if (urlInput) urlInput.value = res.publicUrl;
-        if (feedback) feedback.innerHTML = `<span style="color: var(--primary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) &amp; Uploaded</span>`;
-        adminStore.showToast('Condition image processed &amp; uploaded to Supabase!');
+
+        if (res.isLocalFallback) {
+          if (feedback) feedback.innerHTML = `<span style="color: var(--secondary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) — stored locally. Create the <code>product-images</code> bucket in Supabase to enable cloud storage.</span>`;
+          adminStore.showToast('Condition image converted to WebP and applied locally!');
+        } else {
+          if (feedback) feedback.innerHTML = `<span style="color: var(--primary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) &amp; Uploaded</span>`;
+          adminStore.showToast('Condition image processed &amp; uploaded to Supabase!');
+        }
       }
     } catch (err) {
       if (feedback) feedback.innerHTML = `<span style="color: var(--error); font-weight: 600;">⚠ ${err.message}</span>`;
@@ -710,8 +801,17 @@ function bindAdminEvents() {
             urlInput.value = res.publicUrl;
             bindLivePreview();
           }
-          if (feedback) feedback.innerHTML = `<span style="color: var(--primary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) &amp; Uploaded</span>`;
-          adminStore.showToast('Product photo processed &amp; uploaded to Supabase!');
+          // Also update the live simulator image directly (handles data: URLs which don't trigger input event)
+          const simImg = document.getElementById('simCardImg');
+          if (simImg) simImg.src = res.publicUrl;
+
+          if (res.isLocalFallback) {
+            if (feedback) feedback.innerHTML = `<span style="color: var(--secondary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) — stored locally. Create the <code>product-images</code> bucket in Supabase to enable cloud storage.</span>`;
+            adminStore.showToast('Photo converted to WebP and applied locally!');
+          } else {
+            if (feedback) feedback.innerHTML = `<span style="color: var(--primary); font-weight: 600;">✓ Converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) &amp; Uploaded</span>`;
+            adminStore.showToast('Product photo processed &amp; uploaded to Supabase!');
+          }
         }
       } catch (err) {
         if (feedback) feedback.innerHTML = `<span style="color: var(--error); font-weight: 600;">⚠ ${err.message}</span>`;
@@ -909,7 +1009,9 @@ function bindAdminEvents() {
 
       logoUploadState = {
         isDone: true,
-        message: `Logo converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) and published!`
+        message: res.isLocalFallback
+          ? `Logo converted to WebP (${Math.round(res.sizeBytes / 1024)} KB) and applied locally. Create the pharmacy-assets bucket in Supabase to enable cloud storage.`
+          : `Logo converted to WebP (${Math.round(res.sizeBytes / 1024)} KB, ${res.width}x${res.height}px) and published!`
       };
       render();
     } catch (err) {
@@ -1019,16 +1121,21 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
-// Subscriptions
-sessionStore.subscribe(() => render());
+// Subscriptions with batched rendering
+sessionStore.subscribe(() => scheduleRender());
 adminStore.subscribe(() => {
   // If the user is currently editing inside a modal, do not wipe out their active form inputs
   if (activeEditingItem && document.querySelector('#categoryModalForm, #problemModalForm, #productModalForm')) {
     return;
   }
-  render();
+  scheduleRender();
 });
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionParam = urlParams.get('session');
+  if (sessionParam) {
+    await sessionStore.loadSessionFromQuery(sessionParam);
+  }
   render();
 });

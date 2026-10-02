@@ -127,7 +127,17 @@ export function renderWelcomeScreen() {
       </div>
 
       <div class="font-body-sm" style="color: var(--outline); margin-top: 1.25rem;">
-        Takes ~2 minutes • No account registration required
+        Takes ~2 minutes • In-Store Walk-In Kiosk • No account registration required
+      </div>
+
+      <!-- Legal & Scope Disclaimer Banner -->
+      <div style="margin-top: 2rem; padding: 0.9rem 1.25rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-lg); text-align: left; display: flex; align-items: flex-start; gap: 12px; box-shadow: var(--shadow-level-1);">
+        <span class="material-symbols-outlined" style="color: var(--secondary); font-size: 22px; flex-shrink: 0; margin-top: 2px;">gavel</span>
+        <div style="font-size: 0.8rem; color: var(--on-surface-variant); line-height: 1.45;">
+          <strong style="color: var(--on-surface);">Clinical &amp; Legal Notice:</strong> 
+          This kiosk provides cosmetic &amp; over-the-counter (OTC) skincare recommendations for general wellness. 
+          It does <strong>not</strong> provide medical diagnoses, clinical prescriptions, or replace a medical consultation with a dermatologist. Please consult the on-duty pharmacist for medical concerns.
+        </div>
       </div>
     </div>
   `;
@@ -137,16 +147,23 @@ export function renderWelcomeScreen() {
 export function renderNameScreen(state) {
   return `
     <div class="kiosk-container" style="max-width: 580px; padding-top: 1.5rem;">
-      <div style="margin-bottom: 2rem; text-align: center;">
+      <div style="margin-bottom: 1.75rem; text-align: center;">
         <h2 class="font-headline-lg" style="color: var(--on-surface); margin-bottom: 0.5rem;">
           Let's personalize your visit
         </h2>
         <p class="font-body-md" style="color: var(--on-surface-variant);">
-          Please enter your name so we can customize your skincare recommendations.
+          Please enter your name or continue as a guest for a private consultation pass.
         </p>
       </div>
 
       <form id="nameEntryForm" style="background: #ffffff; padding: 2rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+          <button type="button" class="btn-ghost" id="continueAsGuestBtn" style="font-size: 0.85rem; padding: 0.25rem 0.75rem; min-height: 34px; color: var(--secondary); background: #f0fdfa; border: 1px solid var(--secondary-fixed-dim);">
+            <span class="material-symbols-outlined" style="font-size: 16px;">person_outline</span>
+            <span>Consult as Anonymous Guest</span>
+          </button>
+        </div>
+
         <div class="form-group">
           <label class="form-label" for="firstNameInput">
             First Name <span style="color: var(--error);">*</span>
@@ -178,7 +195,23 @@ export function renderNameScreen(state) {
           />
         </div>
 
-        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <!-- Mandatory Disclaimer & Consent Checkbox -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--radius-md); padding: 0.9rem; margin-top: 1.25rem;">
+          <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer; user-select: none;">
+            <input type="checkbox" id="disclaimerConsentCheckbox" checked required style="margin-top: 3px; accent-color: var(--primary-container); width: 17px; height: 17px; flex-shrink: 0;" />
+            <span style="font-size: 0.825rem; color: var(--on-surface); line-height: 1.45;">
+              I understand that these recommendations are <strong>cosmetic/OTC skincare suggestions</strong> and not a clinical diagnosis or medical prescription. I agree to consult the on-duty pharmacist for medical concerns.
+            </span>
+          </label>
+        </div>
+
+        <!-- Privacy Assurance -->
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--outline); margin-top: 1rem;">
+          <span class="material-symbols-outlined" style="font-size: 15px; color: var(--secondary);">lock</span>
+          <span>Your name is only used for this in-store visit and is cleared automatically upon session end.</span>
+        </div>
+
+        <div style="display: flex; gap: 1rem; margin-top: 1.75rem;">
           <button type="button" class="btn-ghost" id="backToWelcomeBtn" style="flex: 1;">
             <span class="material-symbols-outlined">arrow_back</span>
             <span>Back</span>
@@ -229,12 +262,12 @@ export function renderSkinTypeScreen(state) {
         ${cardsHtml}
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-        <button class="btn-ghost" id="backToNameBtn">
+      <div class="review-nav-row" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <button class="btn-ghost" id="backToNameBtn" style="min-height: 48px;">
           <span class="material-symbols-outlined">arrow_back</span>
           <span>Back</span>
         </button>
-        <button class="btn-primary" id="continueToConcernsBtn" ${!state.selectedSkinTypeId ? 'disabled' : ''}>
+        <button class="btn-primary" id="continueToConcernsBtn" style="min-height: 52px; flex: 1; max-width: 320px;" ${!state.selectedSkinTypeId ? 'disabled' : ''}>
           <span>Next: Select Concerns</span>
           <span class="material-symbols-outlined">arrow_forward</span>
         </button>
@@ -481,12 +514,12 @@ export function renderReviewScreen(state) {
         ` : ''}
       </div>
 
-      <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem;">
-        <button class="btn-ghost" id="backToConcernsBtn">
+      <div class="review-nav-row" style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+        <button class="btn-ghost" id="backToConcernsBtn" style="min-height: 48px;">
           <span class="material-symbols-outlined">arrow_back</span>
           <span>Back</span>
         </button>
-        <button class="btn-primary" id="generateRecommendationsBtn" style="font-size: 1.05rem; padding: 0 2rem;">
+        <button class="btn-primary" id="generateRecommendationsBtn" style="font-size: 1.05rem; padding: 0 1.75rem; min-height: 52px; flex: 1; max-width: 380px;">
           <span>Generate Recommendations</span>
           <span class="material-symbols-outlined">auto_awesome</span>
         </button>
@@ -503,53 +536,87 @@ export function renderRecommendationsScreen(state) {
   const activeCategories = sessionStore.getActiveCategories();
 
   let categoriesHtml = '';
+  let totalEstimatedPrice = 0;
+  let totalProductCount = 0;
 
-  activeCategories.forEach(cat => {
+  activeCategories.forEach((cat, index) => {
     const group = grouped[cat.id];
     if (!group || group.items.length === 0) return;
 
-    const productsHtml = group.items.map(prod => `
-      <div class="product-card">
-        <img 
-          src="${prod.image}" 
-          alt="${prod.name}" 
-          class="product-card-img" 
-          loading="lazy" 
-          onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80'"
-        />
-        <div class="product-card-body">
-          <div class="font-label-sm" style="color: var(--secondary); text-transform: uppercase; margin-bottom: 4px;">
-            ${prod.brand}
-          </div>
-          <h4 class="font-headline-sm" style="color: var(--on-surface); font-size: 1.1rem; line-height: 1.35; margin-bottom: 8px;">
-            ${prod.name}
-          </h4>
+    totalProductCount += group.items.length;
 
-          <div class="product-badges">
-            ${(prod.badges || []).map(b => `<span class="product-badge">${b}</span>`).join('')}
-          </div>
+    const productsHtml = group.items.map(prod => {
+      const price = prod.price || 0;
+      totalEstimatedPrice += price;
+      
+      // Clinical safety cues
+      const isRetinoidOrAcid = prod.name.toLowerCase().includes('retinol') || 
+                               prod.name.toLowerCase().includes('salicylic') || 
+                               prod.name.toLowerCase().includes('glycolic') || 
+                               prod.name.toLowerCase().includes('aha') || 
+                               prod.name.toLowerCase().includes('bha');
+      
+      const isSunscreen = prod.name.toLowerCase().includes('sunscreen') || 
+                          prod.name.toLowerCase().includes('spf') || 
+                          prod.name.toLowerCase().includes('sun block');
 
-          <div class="product-instruction-box">
-            <div style="display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--secondary); margin-bottom: 2px; font-size: 0.8rem;">
-              <span class="material-symbols-outlined" style="font-size: 15px;">schedule</span>
-              Application Usage:
+      return `
+        <div class="product-card">
+          <img 
+            src="${prod.image}" 
+            alt="${prod.name}" 
+            class="product-card-img" 
+            loading="lazy" 
+            onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=500&q=80'"
+          />
+          <div class="product-card-body">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 4px;">
+              <span class="font-label-sm" style="color: var(--secondary); text-transform: uppercase;">
+                ${prod.brand}
+              </span>
+              <span style="font-size: 0.75rem; background: #eff4ff; color: var(--secondary); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">
+                Step ${index + 1}
+              </span>
             </div>
-            ${prod.instruction}
-          </div>
 
-          <div style="margin-top: auto; padding-top: 1rem; display: flex; align-items: center; justify-content: space-between;">
-            <div>
-              <div class="font-label-sm" style="color: var(--outline);">Pharmacy Price</div>
-              <div class="product-price-tag">Rs. ${(prod.price || 0).toLocaleString()}</div>
+            <h4 class="font-headline-sm" style="color: var(--on-surface); font-size: 1.1rem; line-height: 1.35; margin-bottom: 8px;">
+              ${prod.name}
+            </h4>
+
+            <div class="product-badges">
+              ${(prod.badges || []).map(b => `<span class="product-badge">${b}</span>`).join('')}
+              ${isRetinoidOrAcid ? '<span class="product-badge" style="background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5;">☀️ Sunscreen Required</span>' : ''}
+              ${isSunscreen ? '<span class="product-badge" style="background: #f0fdf4; color: #166534; border: 1px solid #dcfce7;">☀️ AM Step</span>' : ''}
             </div>
-            <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--primary); font-size: 0.85rem; font-weight: 600; background: #f0fdf4; padding: 4px 10px; border-radius: 9999px;">
-              <span class="material-symbols-outlined" style="font-size: 16px;">check_circle</span>
-              In Stock
-            </span>
+
+            <div class="product-instruction-box">
+              <div style="display: flex; align-items: center; gap: 4px; font-weight: 600; color: var(--secondary); margin-bottom: 2px; font-size: 0.8rem;">
+                <span class="material-symbols-outlined" style="font-size: 15px;">schedule</span>
+                Application Usage:
+              </div>
+              ${prod.instruction}
+            </div>
+
+            <!-- Safety patch note -->
+            <div style="font-size: 0.725rem; color: var(--outline); margin-top: 6px; display: flex; align-items: center; gap: 4px;">
+              <span class="material-symbols-outlined" style="font-size: 13px;">info</span>
+              Patch test 24h prior to full facial application.
+            </div>
+
+            <div style="margin-top: auto; padding-top: 1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <div class="font-label-sm" style="color: var(--outline);">Pharmacy Price</div>
+                <div class="product-price-tag">Rs. ${price.toLocaleString()}</div>
+              </div>
+              <span style="display: inline-flex; align-items: center; gap: 4px; color: var(--primary); font-size: 0.85rem; font-weight: 600; background: #f0fdf4; padding: 4px 10px; border-radius: 9999px;">
+                <span class="material-symbols-outlined" style="font-size: 16px;">check_circle</span>
+                In Stock
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     categoriesHtml += `
       <div class="category-section">
@@ -557,7 +624,10 @@ export function renderRecommendationsScreen(state) {
           <div class="category-icon">
             <span class="material-symbols-outlined" style="font-size: 22px;">${cat.icon}</span>
           </div>
-          <h3 class="font-headline-md" style="color: var(--on-surface);">${cat.name}</h3>
+          <div>
+            <h3 class="font-headline-md" style="color: var(--on-surface); margin: 0;">Step ${index + 1}: ${cat.name}</h3>
+            <div class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem;">Targeted formulation for your skin profile</div>
+          </div>
         </div>
         <div class="selection-grid selection-grid-2">
           ${productsHtml}
@@ -577,8 +647,24 @@ export function renderRecommendationsScreen(state) {
           Your Pharmacist-Recommended Regimen
         </h2>
         <p class="font-body-md" style="color: var(--on-surface-variant); max-width: 620px; margin: 0 auto;">
-          Calibrated to target your selected concerns while protecting against high-altitude mountain UV and dryness in Palpa.
+          Calibrated for your skin type and concerns. Please show this summary to our on-duty pharmacist to collect your items.
         </p>
+      </div>
+
+      <!-- In-Store Counter Handover Banner -->
+      <div class="counter-pass-banner" style="background: #ffffff; border: 1.5px solid var(--secondary-fixed-dim); border-radius: var(--radius-xl); padding: 1.25rem 1.5rem; margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; box-shadow: var(--shadow-level-1);">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+          <div style="width: 44px; height: 44px; border-radius: 12px; background: #f0fdfa; color: var(--secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span class="material-symbols-outlined" style="font-size: 24px;">counter_0</span>
+          </div>
+          <div style="min-width: 0;">
+            <div class="font-label-md" style="color: var(--on-surface); font-size: 1rem; word-break: break-word;">Walk-In Pass: <span style="color: var(--primary); font-weight: 800;">${state.sessionId}</span></div>
+            <div class="font-body-sm" style="color: var(--on-surface-variant);">${totalProductCount} Items • Est. Total: Rs. ${totalEstimatedPrice.toLocaleString()}</div>
+          </div>
+        </div>
+        <div style="font-size: 0.825rem; font-weight: 600; color: var(--secondary); background: #f0fdfa; padding: 6px 14px; border-radius: 9999px; border: 1px solid var(--secondary-fixed-dim); flex-shrink: 0;">
+          📍 Show to Pharmacist at Counter
+        </div>
       </div>
 
       <!-- Severe Condition Warning Banner -->
@@ -593,7 +679,7 @@ export function renderRecommendationsScreen(state) {
               ${adminStore.settings?.severeWarningText ? `
                 <div style="margin-bottom: 6px; font-weight: 600;">${adminStore.settings.severeWarningText}</div>
               ` : ''}
-              One or more of your selected concerns (${selectedConcerns.filter(c => c.isSevere).map(c => `<strong>${c.title}</strong>`).join(', ')}) indicates acute skin irritation or barrier sensitivity. 
+              One or more of your selected concerns (${selectedConcerns.filter(c => c.isSevere || c.is_severe).map(c => `<strong>${c.title}</strong>`).join(', ')}) indicates acute skin irritation or barrier sensitivity. 
               <strong>Please speak directly with our attending pharmacist at the counter before applying high-strength active exfoliants.</strong>
             </div>
           </div>
@@ -612,14 +698,22 @@ export function renderRecommendationsScreen(state) {
         `}
       </div>
 
+      <!-- Legal Protection Footer Disclaimer -->
+      <div style="margin-top: 2rem; padding: 1rem 1.25rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-lg); display: flex; align-items: flex-start; gap: 10px;">
+        <span class="material-symbols-outlined" style="font-size: 20px; color: var(--outline); flex-shrink: 0; margin-top: 2px;">verified_user</span>
+        <div style="font-size: 0.775rem; color: var(--outline); line-height: 1.45;">
+          <strong>Legal Disclaimer:</strong> Products listed above are over-the-counter skincare suggestions curated for walk-in wellness guidance at Ronit Pharmacy. This does not constitute a prescription or medical diagnosis. In-store prices and batch availability are subject to physical confirmation at the counter.
+        </div>
+      </div>
+
       <!-- Action Footer: Take Home on Phone -->
-      <div style="margin-top: 3rem; padding: 1.75rem; background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem; box-shadow: var(--shadow-level-1);">
+      <div class="recommendations-footer-box" style="margin-top: 2rem; padding: 1.75rem; background: #ffffff; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1.25rem; box-shadow: var(--shadow-level-1);">
         <div>
           <h4 class="font-headline-sm" style="color: var(--on-surface); margin-bottom: 0.25rem;">
             Take this routine with you on your phone
           </h4>
           <p class="font-body-sm" style="color: var(--on-surface-variant);">
-            Scan our live QR code to save your product list, dosages, and prices directly to your phone.
+            Scan our live QR code to keep your routine pass handy on your smartphone.
           </p>
         </div>
 
@@ -664,7 +758,7 @@ export function renderQRModal(state) {
             Consultation Pass: ${state.sessionId}
           </div>
           <p class="font-body-sm" style="color: var(--on-surface-variant); max-width: 360px; margin: 0 auto 1.5rem;">
-            Point your smartphone camera at this QR code to view and save your complete skincare regimen.
+            Point your smartphone camera at this QR code to view and save your complete skincare regimen on your mobile device.
           </p>
 
           <div style="display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
@@ -765,7 +859,7 @@ export function renderEndSessionConfirmModal(state) {
   `;
 }
 
-// 9. Mobile Recommendation Page (Phone View)
+// 9. Mobile Recommendation Page (Phone View for In-Store Walk-In Customer)
 export function renderMobilePage(state) {
   const skinType = sessionStore.getSelectedSkinType();
   const concerns = sessionStore.getSelectedConcerns();
@@ -774,41 +868,53 @@ export function renderMobilePage(state) {
   const activeCategories = sessionStore.getActiveCategories();
 
   let productsList = '';
-  activeCategories.forEach(cat => {
+  let totalEstPrice = 0;
+  let totalCount = 0;
+
+  activeCategories.forEach((cat, index) => {
     const group = grouped[cat.id];
     if (!group || group.items.length === 0) return;
 
+    totalCount += group.items.length;
+
     productsList += `
       <div style="margin-top: 1.25rem;">
-        <div style="font-size: 0.85rem; font-weight: 700; color: var(--secondary); text-transform: uppercase; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 4px;">
-          <span class="material-symbols-outlined" style="font-size: 16px;">${cat.icon}</span>
-          ${cat.name}
+        <div style="font-size: 0.85rem; font-weight: 700; color: var(--secondary); text-transform: uppercase; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
+          <span style="display: flex; align-items: center; gap: 4px;">
+            <span class="material-symbols-outlined" style="font-size: 16px;">${cat.icon}</span>
+            Step ${index + 1}: ${cat.name}
+          </span>
+          <span style="font-size: 0.75rem; color: var(--outline); font-weight: 500;">${group.items.length} item${group.items.length > 1 ? 's' : ''}</span>
         </div>
-        ${group.items.map(p => `
-          <div style="background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; padding: 1rem; margin-bottom: 0.75rem; box-shadow: var(--shadow-level-1);">
-            <div style="display: flex; gap: 12px; margin-bottom: 0.5rem;">
-              <img src="${p.image}" alt="${p.name}" style="width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'" />
-              <div>
-                <div style="font-size: 0.75rem; font-weight: 600; color: var(--secondary);">${p.brand}</div>
-                <div style="font-size: 0.95rem; font-weight: 700; color: var(--on-surface); line-height: 1.25;">${p.name}</div>
-                <div style="font-size: 0.9rem; font-weight: 700; color: var(--primary); margin-top: 4px;">Rs. ${(p.price || 0).toLocaleString()}</div>
+        ${group.items.map(p => {
+          const price = p.price || 0;
+          totalEstPrice += price;
+          return `
+            <div style="background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; padding: 1rem; margin-bottom: 0.75rem; box-shadow: var(--shadow-level-1);">
+              <div style="display: flex; gap: 12px; margin-bottom: 0.5rem;">
+                <img src="${p.image}" alt="${p.name}" style="width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0;" onerror="this.src='https://images.unsplash.com/photo-1556228720-195a672e8a03?auto=format&fit=crop&w=120&q=80'" />
+                <div style="flex: 1;">
+                  <div style="font-size: 0.75rem; font-weight: 600; color: var(--secondary);">${p.brand}</div>
+                  <div style="font-size: 0.95rem; font-weight: 700; color: var(--on-surface); line-height: 1.25;">${p.name}</div>
+                  <div style="font-size: 0.95rem; font-weight: 800; color: var(--primary); margin-top: 4px;">Rs. ${price.toLocaleString()}</div>
+                </div>
+              </div>
+              <div style="background: #f8fafc; border-left: 3px solid var(--secondary); padding: 6px 10px; font-size: 0.8rem; color: var(--on-surface-variant); border-radius: 4px; margin-top: 6px;">
+                <strong>Usage Guide:</strong> ${p.instruction}
               </div>
             </div>
-            <div style="background: #f8fafc; border-left: 2px solid var(--secondary); padding: 6px 8px; font-size: 0.8rem; color: var(--on-surface-variant); border-radius: 4px;">
-              <strong>Usage:</strong> ${p.instruction}
-            </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
       </div>
     `;
   });
 
   const { settings } = adminStore;
-  const pharmacyName = settings?.pharmacyName || '';
-  const location = settings?.location || '';
-  const subLocation = settings?.subLocation || '';
+  const pharmacyName = settings?.pharmacyName || 'Ronit Pharmacy & Beauty Care';
+  const location = settings?.location || 'Tansen, Palpa';
+  const subLocation = settings?.subLocation || 'Palpa, Lumbini';
   const phone = settings?.phone || '';
-  const severeWarning = settings?.severeWarningText || 'Severe skin condition flagged. Please speak with our attending pharmacist before using high-strength actives.';
+  const severeWarning = settings?.severeWarningText || 'Severe skin condition flagged. Please speak directly with our on-duty pharmacist before using high-strength actives.';
 
   return `
     <div class="mobile-view-wrapper">
@@ -821,8 +927,8 @@ export function renderMobilePage(state) {
             <span class="material-symbols-outlined">local_pharmacy</span>
           `}
           <div>
-            <div style="font-size: 0.95rem; font-weight: 700;">${pharmacyName || 'Skincare Routine'}</div>
-            <div style="font-size: 0.75rem; opacity: 0.9;">${location ? `${location} • ` : ''}Skincare Pass</div>
+            <div style="font-size: 0.95rem; font-weight: 700;">${pharmacyName}</div>
+            <div style="font-size: 0.75rem; opacity: 0.9;">${location ? `${location} • ` : ''}Walk-In Pass</div>
           </div>
         </div>
         <button class="btn-ghost" id="exitMobileViewBtn" style="color: #ffffff; min-height: 36px; padding: 0 8px;">
@@ -831,31 +937,50 @@ export function renderMobilePage(state) {
       </div>
 
       <div style="padding: 1rem; background: #f8f9ff; flex: 1;">
-        <!-- User Summary -->
-        <div style="background: #ffffff; border-radius: var(--radius-lg); padding: 1rem; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
-          <div style="font-size: 0.75rem; color: var(--outline); text-transform: uppercase;">Routine Pass For</div>
-          <div style="font-size: 1.15rem; font-weight: 700; color: var(--primary);">${state.customer.firstName || 'Patient'} ${state.customer.lastName || ''}</div>
+        <!-- Walk-In Counter Handover Pass Card -->
+        <div style="background: #ffffff; border-radius: var(--radius-lg); padding: 1.25rem; border: 1.5px solid var(--primary-fixed-dim); margin-bottom: 1rem; box-shadow: var(--shadow-level-1);">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; margin-bottom: 8px;">
+            <div>
+              <div style="font-size: 0.725rem; color: var(--outline); text-transform: uppercase;">Walk-In Pass Token</div>
+              <div style="font-size: 1.2rem; font-weight: 800; color: var(--primary);">${state.sessionId}</div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 0.725rem; color: var(--outline);">Est. Total (${totalCount} Items)</div>
+              <div style="font-size: 1.1rem; font-weight: 800; color: var(--secondary);">Rs. ${totalEstPrice.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div style="font-size: 0.95rem; font-weight: 700; color: var(--on-surface);">Patient: ${state.customer.firstName || 'Guest'} ${state.customer.lastName || ''}</div>
           <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;">
             <span style="font-size: 0.75rem; background: #eff4ff; color: var(--secondary); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">
-              ${skinType ? skinType.name : ''}
+              ${skinType ? skinType.name : 'Skin Consultation'}
             </span>
             ${concerns.map(c => `<span style="font-size: 0.75rem; background: #f0fdf4; color: var(--primary-container); padding: 2px 8px; border-radius: 9999px; font-weight: 600;">${c.title}</span>`).join('')}
+          </div>
+
+          <div style="margin-top: 10px; background: #f0fdf4; border: 1px dashed var(--primary-fixed-dim); border-radius: 8px; padding: 8px 10px; text-align: center; font-size: 0.8rem; color: var(--primary-container); font-weight: 600;">
+            👉 Show this screen to our pharmacist at the counter
           </div>
         </div>
 
         ${hasSevere ? `
-          <div style="background: var(--warning-wash); border: 1px solid #fcd34d; border-left: 4px solid var(--warning-stripe); padding: 0.75rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #78350f; margin-bottom: 1rem;">
-            <strong>Pharmacist Note:</strong> ${severeWarning}
+          <div style="background: var(--warning-wash); border: 1px solid #fcd34d; border-left: 4px solid var(--warning-stripe); padding: 0.85rem; border-radius: var(--radius-md); font-size: 0.85rem; color: #78350f; margin-bottom: 1rem;">
+            <strong>⚠️ Pharmacist Attention:</strong> ${severeWarning}
           </div>
         ` : ''}
 
-        <!-- Products -->
-        <h3 style="font-size: 1rem; font-weight: 700; color: var(--on-surface);">Recommended Skincare Items</h3>
-        ${productsList}
+        <!-- Recommended Products -->
+        <h3 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin-top: 0.5rem;">Recommended Regimen Items</h3>
+        ${productsList || '<div style="background:#fff; padding:1.5rem; text-align:center; border-radius:12px; margin-top:0.5rem; color:var(--outline); font-size:0.85rem;">No direct items selected. Please consult the counter pharmacist.</div>'}
 
-        <!-- Pharmacy Contact -->
+        <!-- Legal Notice -->
+        <div style="margin-top: 1.5rem; padding: 0.9rem; background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; font-size: 0.725rem; color: var(--outline); line-height: 1.45;">
+          <strong>Legal Notice:</strong> This regimen pass provides OTC cosmetic recommendations for walk-in pharmacy visitors. It is not a clinical medical prescription. Product availability and final prices confirmed in-store at Ronit Pharmacy.
+        </div>
+
+        <!-- Pharmacy Store Details -->
         ${(pharmacyName || location || phone) ? `
-          <div style="margin-top: 1.5rem; padding: 1rem; background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; text-align: center;">
+          <div style="margin-top: 1rem; padding: 1rem; background: #ffffff; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; text-align: center;">
             ${pharmacyName ? `<div style="font-size: 0.85rem; font-weight: 700; color: var(--on-surface);">${pharmacyName}</div>` : ''}
             ${subLocation ? `<div style="font-size: 0.8rem; color: var(--on-surface-variant);">${subLocation}</div>` : ''}
             ${location && location !== subLocation ? `<div style="font-size: 0.8rem; color: var(--on-surface-variant);">${location}</div>` : ''}

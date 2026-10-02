@@ -891,12 +891,256 @@ html, body {
 /* Mobile Handover View */
 .mobile-view-wrapper {
   max-width: 480px;
+  width: 100%;
   margin: 0 auto;
   background: #ffffff;
   min-height: 100vh;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
+}
+
+/* ==========================================================================
+   Comprehensive Kiosk & Mobile View Responsive Rules (<= 640px and <= 480px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  :root {
+    --gutter: 1rem;
+    --margin: 1rem;
+  }
+
+  /* Kiosk Header */
+  .kiosk-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .kiosk-header-inner {
+    gap: 0.5rem;
+  }
+
+  .brand-emblem {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .brand-icon-box {
+    width: 36px;
+    height: 36px;
+  }
+
+  .font-label-lg {
+    font-size: 0.925rem;
+  }
+
+  .location-chip {
+    font-size: 0.675rem;
+    padding: 2px 6px;
+  }
+
+  #endSessionTopBtn {
+    font-size: 0.75rem;
+    padding: 0 0.5rem;
+    min-height: 36px;
+  }
+
+  /* Kiosk Containers */
+  .kiosk-container {
+    padding: 1rem 0.75rem 5rem;
+    width: 100%;
+  }
+
+  /* Headings scale */
+  .font-headline-xl {
+    font-size: 1.5rem;
+  }
+
+  .font-headline-lg {
+    font-size: 1.3rem;
+  }
+
+  .font-headline-md {
+    font-size: 1.15rem;
+  }
+
+  /* Stepper */
+  .progress-stepper {
+    gap: 5px;
+    margin: 0.5rem auto;
+    padding: 0 0.5rem;
+  }
+
+  .step-dot {
+    width: 24px;
+    height: 6px;
+  }
+
+  .step-dot.active {
+    width: 38px;
+  }
+
+  /* Selection Grids */
+  .selection-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem;
+  }
+
+  .selection-card {
+    padding: 1rem;
+    min-height: auto;
+  }
+
+  /* Concern Cards */
+  .concern-header-img {
+    height: 150px;
+  }
+
+  .concern-body {
+    padding: 1rem;
+  }
+
+  .concern-actions {
+    padding: 0.75rem 1rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .btn-add-concern {
+    min-height: 42px;
+    padding: 0 1rem;
+    font-size: 0.85rem;
+  }
+
+  /* Floating Bottom Tray */
+  .floating-bottom-tray {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .tray-content {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .tray-counter-badge {
+    min-width: 26px;
+    height: 26px;
+    font-size: 0.75rem;
+    padding: 0 6px;
+  }
+
+  #proceedToReviewBtn {
+    padding: 0 1rem;
+    min-height: 44px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  #backToSkinTypeBtn {
+    padding: 0 0.5rem;
+    min-height: 44px;
+    font-size: 0.85rem;
+  }
+
+  /* Product Cards */
+  .product-card-body {
+    padding: 1rem;
+  }
+
+  .product-price-tag {
+    font-size: 1.15rem;
+  }
+
+  /* Buttons */
+  .btn-primary, .btn-secondary {
+    min-height: 48px;
+    padding: 0 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  .btn-ghost {
+    min-height: 44px;
+    padding: 0 0.85rem;
+    font-size: 0.875rem;
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    padding: 0.75rem;
+  }
+
+  .modal-dialog {
+    max-width: 100%;
+    width: 100%;
+    border-radius: var(--radius-lg);
+  }
+}
+
+@media (max-width: 480px) {
+  /* Ultra-small phones */
+  .kiosk-container {
+    padding: 0.75rem 0.5rem 5.5rem;
+  }
+
+  .kiosk-header {
+    padding: 0.5rem;
+  }
+
+  .kiosk-header .font-body-sm {
+    display: none;
+  }
+
+  #endSessionTopBtn span:not(.material-symbols-outlined) {
+    display: none;
+  }
+
+  #endSessionTopBtn {
+    padding: 0 8px;
+    min-height: 34px;
+  }
+
+  /* Bottom tray text on small phones */
+  .tray-content .font-body-sm {
+    display: none;
+  }
+
+  .tray-content .font-label-md {
+    font-size: 0.85rem;
+  }
+
+  /* Review screen action buttons */
+  .review-nav-row {
+    flex-direction: column-reverse;
+    gap: 0.5rem !important;
+  }
+
+  .review-nav-row button {
+    width: 100%;
+  }
+
+  /* Product actions and footer banners */
+  .recommendations-footer-box {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 1rem !important;
+  }
+
+  .recommendations-footer-box button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .counter-pass-banner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  /* QR Modal canvas */
+  #qrCanvas {
+    width: 180px !important;
+    height: 180px !important;
+  }
 }
 
 /* ==========================================================================

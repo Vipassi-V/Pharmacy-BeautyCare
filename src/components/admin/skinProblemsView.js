@@ -150,7 +150,7 @@ export function renderSkinProblemModal(problem = null) {
             <label class="form-label" for="probFormImageUrl">Condition Cover Image (Auto-WebP, max 800&times;800px, &le; 250 KB)</label>
             <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 6px;">
               <input type="url" id="probFormImageUrl" class="form-input" placeholder="https://..." value="${defaultImg}" style="flex: 1;" />
-              <input type="file" id="probFileInput" accept="image/jpeg, image/jpg, image/png, image/webp" style="display: none;" />
+              <input type="file" id="probFileInput" accept="image/*" style="display: none;" />
               <button type="button" class="btn-primary" id="probUploadFileBtn" style="min-height: 52px; padding: 0 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 4px;">
                 <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
                 <span>Upload</span>
@@ -161,7 +161,7 @@ export function renderSkinProblemModal(problem = null) {
             </div>
             
             <div id="probImageFeedback" style="font-size: 0.75rem; margin-top: 4px; color: var(--outline);">
-              <span>Select JPEG, PNG, or WebP. Converted client-side before upload to Supabase.</span>
+              <span>Select any image (JPEG, PNG, HEIC, BMP, WebP…). Auto-converted to WebP before upload.</span>
             </div>
             <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
               <button type="button" id="probClearImageBtn" style="background: none; border: none; color: var(--error); cursor: pointer; font-size: 0.75rem; padding: 0;">Remove Image</button>

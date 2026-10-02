@@ -136,14 +136,14 @@ export async function processClientImage(file, type = 'PRODUCT', onProgress = nu
     throw new Error('No image file selected.');
   }
 
-  // 1. Validate MIME type
-  const normalizedMime = file.type ? file.type.toLowerCase() : '';
+  // 1. Validate MIME type or file extension
+  const isImageMime = file.type ? file.type.startsWith('image/') : false;
   const fileExtension = file.name ? file.name.split('.').pop()?.toLowerCase() : '';
-  const isAllowedMime = ALLOWED_MIME_TYPES.includes(normalizedMime) || 
-    ['jpg', 'jpeg', 'png', 'webp'].includes(fileExtension);
+  const isAllowedMime = isImageMime || ALLOWED_MIME_TYPES.includes(file.type?.toLowerCase()) || 
+    ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'avif', 'heic'].includes(fileExtension);
 
   if (!isAllowedMime) {
-    throw new Error(`Unsupported image format (${file.type || fileExtension || 'unknown'}). Please select a JPEG, PNG, or WebP file.`);
+    throw new Error(`Unsupported image format (${file.type || fileExtension || 'unknown'}). Please select an image file.`);
   }
 
   // 2. Validate input file size
@@ -182,34 +182,32 @@ export async function processClientImage(file, type = 'PRODUCT', onProgress = nu
     limits.maxHeight
   );
 
-  // 5. Convert to WebP with adaptive quality step-down if needed
+  // 5. Convert to WebP with adaptive quality step-down to prevent storage bloat
   let quality = 0.82;
   let webpBlob = await canvasToWebPBlob(img, targetWidth, targetHeight, quality);
 
-  // If slightly above limit, attempt step-down quality compression
-  if (webpBlob.size > limits.maxSizeBytes && quality > 0.65) {
-    quality = 0.72;
+  while (webpBlob && webpBlob.size > limits.maxSizeBytes && quality > 0.35) {
+    quality -= 0.12;
     webpBlob = await canvasToWebPBlob(img, targetWidth, targetHeight, quality);
   }
 
-  if (webpBlob.size > limits.maxSizeBytes && quality > 0.55) {
-    quality = 0.60;
-    webpBlob = await canvasToWebPBlob(img, targetWidth, targetHeight, quality);
-  }
-
-  // 6. Enforce final byte limit
-  if (webpBlob.size > limits.maxSizeBytes) {
-    const maxKb = Math.round(limits.maxSizeBytes / 1024);
-    const actualKb = Math.round(webpBlob.size / 1024);
-    throw new Error(`Processed image size (${actualKb} KB) exceeds the maximum allowed limit of ${maxKb} KB for this entity.`);
-  }
-
-  notify('Finalizing preview...', 90);
-
-  // Create processed File object
+  // 6. Create processed File object and WebP Data URL
   const cleanName = (file.name || 'image').replace(/\.[^/.]+$/, '') + '.webp';
   const processedFile = new File([webpBlob], cleanName, { type: 'image/webp' });
   const previewUrl = URL.createObjectURL(webpBlob);
+
+  // Create canvas-generated data URL for fallback storage
+  let dataUrl = null;
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+      dataUrl = canvas.toDataURL('image/webp', quality);
+    }
+  } catch {}
 
   notify('Ready', 100);
 
@@ -220,7 +218,8 @@ export async function processClientImage(file, type = 'PRODUCT', onProgress = nu
     height: targetHeight,
     mimeType: 'image/webp',
     sizeBytes: webpBlob.size,
-    previewUrl
+    previewUrl,
+    dataUrl: dataUrl || previewUrl
   };
 }
 
