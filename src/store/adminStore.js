@@ -275,6 +275,9 @@ class AdminStore {
         onConfirm: () => {
           this.isDirty = false;
           this.currentTab = tab;
+          if (tab === 'reports' || tab === 'dashboard') {
+            this.fetchSessions();
+          }
           this.closeModal();
           this.notify();
         }
@@ -282,6 +285,9 @@ class AdminStore {
       return;
     }
     this.currentTab = tab;
+    if (tab === 'reports' || tab === 'dashboard') {
+      this.fetchSessions();
+    }
     this.notify();
   }
 
@@ -1160,6 +1166,18 @@ class AdminStore {
   }
 
   // --- Consultation Sessions & Reports ---
+  addLocalSession(sessionRecord) {
+    if (!sessionRecord) return;
+    const existsIdx = this.sessions.findIndex(s => s.id === sessionRecord.id || (s.rawId && s.rawId === sessionRecord.rawId));
+    if (existsIdx >= 0) {
+      this.sessions[existsIdx] = { ...this.sessions[existsIdx], ...sessionRecord };
+    } else {
+      this.sessions.unshift(sessionRecord);
+    }
+    this.save('rp_sessions', this.sessions);
+    this.notify();
+  }
+
   async fetchSessions() {
     try {
       const { data, error } = await supabase
@@ -1179,7 +1197,7 @@ class AdminStore {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        this.sessions = data.map(s => {
+        const fetched = data.map(s => {
           const snap = s.recommendation_snapshot || {};
           const concerns = (snap.concerns || []).map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
           const products = snap.products || [];
@@ -1199,6 +1217,16 @@ class AdminStore {
             totalEstimatedPrice: totalEstimatedPrice
           };
         });
+
+        // Merge fetched remote sessions with existing local sessions
+        const merged = [...fetched];
+        this.sessions.forEach(local => {
+          if (!merged.some(f => f.id === local.id || (local.rawId && f.rawId === local.rawId))) {
+            merged.push(local);
+          }
+        });
+
+        this.sessions = merged;
         this.save('rp_sessions', this.sessions);
         this.notify();
       }

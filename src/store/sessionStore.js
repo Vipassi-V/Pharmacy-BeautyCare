@@ -388,6 +388,28 @@ class SessionStore {
       recommendation_snapshot: recommendationSnapshot
     };
 
+    const localSession = {
+      id: this.sessionId.length > 8 ? this.sessionId.substring(0, 8).toUpperCase() : this.sessionId,
+      rawId: this.sessionId,
+      customerName: `${this.customer.firstName || ''} ${this.customer.lastName || ''}`.trim() || 'Walk-In Patient',
+      skinType: skinType ? skinType.name : 'Mountain Normal/Dry',
+      concerns: concerns.length > 0 ? concerns.map(c => c.title || c.name || c.id) : ['General Skincare'],
+      hasSevere: hasSevere,
+      timestamp: new Date().toISOString(),
+      products: flattenedProducts.map(p => ({
+        name: p.product_name,
+        brand: p.brand,
+        category: p.category_name,
+        price: p.price,
+        instruction: p.instruction
+      })),
+      matchedProductsCount: flattenedProducts.length,
+      totalEstimatedPrice: flattenedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0)
+    };
+
+    // Always register in local adminStore immediately so Reports & Consult views update without waiting or failing
+    adminStore.addLocalSession(localSession);
+
     try {
       // 1. Insert into sessions
       const { data: sessionData, error: sessionErr } = await supabase
@@ -400,16 +422,21 @@ class SessionStore {
           console.error(
             '[saveSessionToSupabase] RLS POLICY ERROR — The "anon" role lacks INSERT permission on the sessions table.\n' +
             'ACTION REQUIRED: Run the SQL in SUPABASE-RLS-SETUP.sql via Supabase Dashboard → SQL Editor.\n' +
-            'The kiosk will still work, but sessions will not be saved to Supabase until this is fixed.'
+            'Consultation is saved locally in the admin panel.'
           );
         } else {
           console.warn('Supabase sessions insert note:', sessionErr.message || sessionErr);
         }
-        // Allow kiosk to continue — session save is non-blocking
         return;
       }
 
+      if (sessionData && sessionData.length > 0) {
         const createdSessionId = sessionData[0].id;
+
+        // Update local session with DB ID if needed
+        localSession.rawId = createdSessionId;
+        localSession.id = createdSessionId.length > 8 ? createdSessionId.substring(0, 8).toUpperCase() : createdSessionId;
+        adminStore.addLocalSession(localSession);
 
         // 2. Insert session concerns
         if (concerns.length > 0) {
@@ -437,8 +464,9 @@ class SessionStore {
           await supabase.from('session_products').insert(productRows).catch(e => console.warn('session_products insert note:', e));
         }
 
-        // Refresh admin sessions view
+        // Refresh admin sessions view from Supabase
         adminStore.fetchSessions();
+      }
     } catch (err) {
       console.warn('Session save exception:', err);
     }
