@@ -677,18 +677,29 @@ class AdminStore {
       if (prodData && prodData.length > 0) {
         let linkMap = {};
         try {
-          const { data: linkData } = await supabase
+          // Removed .is('deleted_at', null) — column may not exist causing silent failure
+          const { data: linkData, error: linkErr } = await supabase
             .from('product_skin_problems')
-            .select('product_id, skin_problem_id')
-            .is('deleted_at', null);
+            .select('product_id, skin_problem_id');
 
-          if (linkData) {
+          if (linkErr) {
+            console.warn('[fetchProducts] product_skin_problems fetch error:', linkErr.message);
+          }
+
+          if (linkData && linkData.length > 0) {
             linkData.forEach(link => {
               if (!linkMap[link.product_id]) linkMap[link.product_id] = [];
-              linkMap[link.product_id].push(link.skin_problem_id);
+              if (!linkMap[link.product_id].includes(link.skin_problem_id)) {
+                linkMap[link.product_id].push(link.skin_problem_id);
+              }
             });
+            console.log(`[fetchProducts] Loaded ${linkData.length} product-concern links across ${Object.keys(linkMap).length} products`);
+          } else {
+            console.warn('[fetchProducts] No product_skin_problems links found — kiosk recommendations will be empty. Link products to skin concerns in Admin > Products.');
           }
-        } catch {}
+        } catch (linkEx) {
+          console.warn('[fetchProducts] product_skin_problems exception:', linkEx);
+        }
 
         this.products = prodData.map(row => ({
           id: row.id,
@@ -704,7 +715,7 @@ class AdminStore {
           status: row.is_active ? 'active' : 'inactive',
           suitableConcerns: linkMap[row.id] || [],
           suitableSkinTypes: ['dry', 'oily', 'combination', 'sensitive', 'normal'],
-          badges: ['Hypoallergenic', 'In-Store Authentic']
+          badges: row.badges || ['Hypoallergenic', 'In-Store Authentic']
         }));
         this.updateCounts();
         this.save('rp_products', this.products);
@@ -714,6 +725,7 @@ class AdminStore {
       console.warn('Products Supabase fetch note:', e.message || e);
     }
   }
+
 
   async addProduct(product) {
     const payload = {

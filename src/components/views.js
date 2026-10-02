@@ -731,14 +731,22 @@ export function renderRecommendationsScreen(state) {
       <!-- Categorized Products -->
       <div>
         ${categoriesHtml || `
-          <div style="background: #ffffff; padding: 3rem; text-align: center; border-radius: var(--radius-xl); border: 1px solid #e2e8f0;">
-            <div class="font-headline-sm" style="color: var(--on-surface);">No Direct Matches Found</div>
-            <p class="font-body-sm" style="color: var(--on-surface-variant); margin-top: 4px;">
-              Please ask our attending pharmacist for a customized in-store consultation.
+          <div style="background: #ffffff; padding: 3rem 2rem; text-align: center; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
+            <div style="width: 64px; height: 64px; border-radius: 16px; background: #f0fdfa; border: 1px solid var(--secondary-fixed-dim); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+              <span class="material-symbols-outlined" style="font-size: 32px; color: var(--secondary);">storefront</span>
+            </div>
+            <div class="font-headline-sm" style="color: var(--on-surface); margin-bottom: 0.5rem;">No Catalog Matches — Please Visit the Counter</div>
+            <p class="font-body-sm" style="color: var(--on-surface-variant); max-width: 440px; margin: 0 auto 1.5rem;">
+              Your skin profile has been recorded. Our on-duty pharmacist will personally assist you with product selection at the counter.
             </p>
+            <div style="display: inline-flex; align-items: center; gap: 8px; background: #f0fdf4; color: var(--primary); padding: 0.6rem 1.25rem; border-radius: 9999px; font-size: 0.875rem; font-weight: 600; border: 1px solid var(--primary-fixed-dim);">
+              <span class="material-symbols-outlined" style="font-size: 18px;">directions_walk</span>
+              Proceed to the Pharmacist Counter
+            </div>
           </div>
         `}
       </div>
+
 
       <!-- Legal Protection Footer Disclaimer -->
       <div style="margin-top: 2rem; padding: 1rem 1.25rem; background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-lg); display: flex; align-items: flex-start; gap: 10px;">

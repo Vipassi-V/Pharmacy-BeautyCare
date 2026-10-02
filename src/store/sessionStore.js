@@ -60,8 +60,19 @@ class SessionStore {
     if (step === 6 && !this.isSavedToSupabase) {
       this.saveSessionToSupabase();
     }
+    // If moving to recommendations and products have no concern links,
+    // trigger a fresh product fetch to get the latest junction table data
+    if (step === 6) {
+      const activeProducts = adminStore.products.filter(p => p.status === 'active' || p.is_active === true);
+      const linkedCount = activeProducts.filter(p => (p.suitableConcerns || []).length > 0).length;
+      if (activeProducts.length > 0 && linkedCount === 0) {
+        console.log('[setStep→6] Products have no concern links — triggering fresh catalog fetch...');
+        adminStore.fetchProducts().then(() => this.notify());
+      }
+    }
     this.notify();
   }
+
 
   setCustomerName(firstName, lastName) {
     this.customer.firstName = firstName.trim();
@@ -264,6 +275,15 @@ class SessionStore {
     const activeProducts = this.getActiveProducts();
     const activeCategories = this.getActiveCategories();
 
+    // Debug: log matching context
+    const linkedProducts = activeProducts.filter(p => (p.suitableConcerns || []).length > 0);
+    if (activeProducts.length > 0 && linkedProducts.length === 0) {
+      console.warn(`[getRecommendedProducts] WARNING: ${activeProducts.length} products loaded but NONE have suitableConcerns. ` +
+        'Check that product_skin_problems rows exist in Supabase and are loading correctly.');
+    } else {
+      console.log(`[getRecommendedProducts] ${activeProducts.length} active products, ${linkedProducts.length} with concern links, matching against concernIds:`, concernIds);
+    }
+
     // 1. Filter active products strictly matching the selected skin concerns and skin type
     const matched = activeProducts.filter(p => {
       const suitableConcerns = p.suitableConcerns || [];
@@ -285,6 +305,8 @@ class SessionStore {
       // Do NOT fall back to dumping all products if no concerns or skin type selected
       return false;
     });
+
+    console.log(`[getRecommendedProducts] Matched ${matched.length} products for concerns [${concernIds.join(', ')}]`);
 
     // 2. Group by active category, guaranteeing each product is rendered exactly once
     const grouped = {};
@@ -317,6 +339,8 @@ class SessionStore {
 
     return grouped;
   }
+
+
 
   // Persist completed consultation session to Supabase
   async saveSessionToSupabase() {
