@@ -23,22 +23,29 @@ export function renderAdminLayout(contentHtml) {
       <aside class="admin-sidebar" id="adminSidebar">
 
         <!-- Brand Header -->
-        <div style="padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 10px; overflow: hidden;">
-          <div style="flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; background: ${settings.logoUrl ? '#ffffff' : '#f0fdf4'}; border: 1.5px solid var(--primary-container); color: var(--primary-container); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 2px;">
-            ${settings.logoUrl ? `
-              <img src="${settings.logoUrl}" alt="${settings.pharmacyName || 'Pharmacy Logo'}" style="width: 100%; height: 100%; object-fit: contain;" />
-            ` : `
-              <span class="material-symbols-outlined" style="font-size: 24px;">local_pharmacy</span>
-            `}
-          </div>
-          <div class="sidebar-brand-text" style="overflow: hidden;">
-            <div class="font-label-md" style="color: var(--primary); font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${settings.pharmacyName || 'Pharmacy Admin'}
+        <div style="padding: 1rem 1rem 0.75rem; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 10px; overflow: hidden;">
+          <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+            <div style="flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px; background: ${settings.logoUrl ? '#ffffff' : '#f0fdf4'}; border: 1.5px solid var(--primary-container); color: var(--primary-container); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 2px;">
+              ${settings.logoUrl ? `
+                <img src="${settings.logoUrl}" alt="${settings.pharmacyName || 'Pharmacy Logo'}" style="width: 100%; height: 100%; object-fit: contain;" />
+              ` : `
+                <span class="material-symbols-outlined" style="font-size: 24px;">local_pharmacy</span>
+              `}
             </div>
-            <div class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.78rem; white-space: nowrap;">
-              Admin Portal
+            <div class="sidebar-brand-text" style="overflow: hidden;">
+              <div class="font-label-md" style="color: var(--primary); font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${settings.pharmacyName || 'Pharmacy Admin'}
+              </div>
+              <div class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.78rem; white-space: nowrap;">
+                Admin Portal
+              </div>
             </div>
           </div>
+
+          <!-- Mobile Drawer Close Button -->
+          <button id="adminCloseSidebarBtn" class="admin-mobile-only" aria-label="Close menu" style="flex-shrink: 0; width: 36px; height: 36px; border: none; background: #f1f5f9; border-radius: 8px; cursor: pointer; color: var(--on-surface); align-items: center; justify-content: center;">
+            <span class="material-symbols-outlined" style="font-size: 20px;">close</span>
+          </button>
         </div>
 
         <!-- Navigation Links -->

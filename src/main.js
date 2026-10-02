@@ -440,23 +440,28 @@ function bindAdminLoginEvents() {
 
 // --- Admin Portal Event Bindings ---
 function bindAdminEvents() {
+  // Mobile sidebar toggles
+  const openSidebar = () => {
+    document.getElementById('adminSidebar')?.classList.add('mobile-open');
+    document.getElementById('adminSidebarBackdrop')?.classList.add('active');
+  };
+  const closeSidebar = () => {
+    document.getElementById('adminSidebar')?.classList.remove('mobile-open');
+    document.getElementById('adminSidebarBackdrop')?.classList.remove('active');
+  };
+
+  document.getElementById('adminHamburgerBtn')?.addEventListener('click', openSidebar);
+  document.getElementById('adminMobileNavToggle')?.addEventListener('click', openSidebar);
+  document.getElementById('adminCloseSidebarBtn')?.addEventListener('click', closeSidebar);
+  document.getElementById('adminSidebarBackdrop')?.addEventListener('click', closeSidebar);
+
   // Sidebar Tabs
   document.querySelectorAll('.admin-nav-item[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => {
+      closeSidebar();
       const tab = btn.getAttribute('data-tab');
       adminStore.setTab(tab);
     });
-  });
-
-  // Mobile sidebar toggles
-  document.getElementById('adminMobileNavToggle')?.addEventListener('click', () => {
-    document.getElementById('adminSidebar')?.classList.add('mobile-open');
-    document.getElementById('adminSidebarBackdrop')?.classList.add('active');
-  });
-
-  document.getElementById('adminSidebarBackdrop')?.addEventListener('click', () => {
-    document.getElementById('adminSidebar')?.classList.remove('mobile-open');
-    document.getElementById('adminSidebarBackdrop')?.classList.remove('active');
   });
 
   // Switch to Kiosk
