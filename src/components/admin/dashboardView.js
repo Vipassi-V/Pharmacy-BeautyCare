@@ -7,7 +7,11 @@ export function renderDashboardView() {
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.status === 'active').length;
   const totalConcerns = skinProblems.length;
-  const severeConcerns = skinProblems.filter(p => p.isSevere).length;
+  const severeConcerns = skinProblems.filter(p => !!(p.isSevere || p.is_severe)).length;
+
+  const totalConsultations = sessions.length;
+  const severeConsultations = sessions.filter(s => s.hasSevere).length;
+  const severeRate = totalConsultations > 0 ? Math.round((severeConsultations / totalConsultations) * 100) : 0;
 
   return `
     <div>
@@ -62,26 +66,26 @@ export function renderDashboardView() {
 
         <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-            <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">7-Day Consultations</span>
+            <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">Total Consultations</span>
             <div style="width: 38px; height: 38px; border-radius: 10px; background: #fef3c7; color: var(--tertiary); display: flex; align-items: center; justify-content: center;">
               <span class="material-symbols-outlined" style="font-size: 20px;">touch_app</span>
             </div>
           </div>
           <div class="font-headline-lg" style="color: var(--on-surface); margin-bottom: 0.25rem;">
-            168
+            ${totalConsultations}
           </div>
-          <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">+24% vs last week</div>
+          <div style="font-size: 0.8rem; color: var(--primary); font-weight: 600;">Recorded in Supabase</div>
         </div>
 
         <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-xl); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-            <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">Altitude Warning Rate</span>
+            <span class="font-label-sm" style="color: var(--on-surface-variant); text-transform: uppercase;">Severe Flag Rate</span>
             <div style="width: 38px; height: 38px; border-radius: 10px; background: #fee2e2; color: var(--error); display: flex; align-items: center; justify-content: center;">
               <span class="material-symbols-outlined" style="font-size: 20px;">shield_with_heart</span>
             </div>
           </div>
           <div class="font-headline-lg" style="color: var(--on-surface); margin-bottom: 0.25rem;">
-            28%
+            ${severeRate}%
           </div>
           <div style="font-size: 0.8rem; color: var(--on-surface-variant);">Prompted for counter check</div>
         </div>
@@ -94,17 +98,22 @@ export function renderDashboardView() {
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem;">
             <div>
               <h3 class="font-headline-sm" style="color: var(--on-surface); margin: 0;">
-                Most Selected Concerns (Last 7 Days)
+                Most Selected Concerns
               </h3>
               <p class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem; margin: 0;">
-                Aggregated patient queries recorded across Palpa kiosk terminals.
+                Live patient queries recorded across Palpa kiosk terminals.
               </p>
             </div>
             <span class="location-chip">Palpa Trends</span>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 1rem;">
-            ${stats7d.map((stat, idx) => `
+            ${stats7d.length === 0 || stats7d.every(s => s.count === 0) ? `
+              <div style="text-align: center; padding: 2rem 1rem; color: var(--outline); font-size: 0.875rem;">
+                <span class="material-symbols-outlined" style="font-size: 32px; display: block; margin-bottom: 6px;">bar_chart</span>
+                No patient consultation data yet. Trends will populate automatically as customers use the kiosk.
+              </div>
+            ` : stats7d.slice(0, 5).map((stat, idx) => `
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px;">
                   <div style="display: flex; align-items: center; gap: 8px;">
@@ -140,7 +149,12 @@ export function renderDashboardView() {
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-            ${sessions.slice(0, 5).map(s => `
+            ${sessions.length === 0 ? `
+              <div style="text-align: center; padding: 2.5rem 1rem; color: var(--outline); font-size: 0.875rem;">
+                <span class="material-symbols-outlined" style="font-size: 36px; display: block; margin-bottom: 6px;">touch_app</span>
+                No customer sessions recorded yet.<br/>Walk-in consultations completed at the kiosk will show here in real time.
+              </div>
+            ` : sessions.slice(0, 5).map(s => `
               <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border-radius: var(--radius-md); background: #f8fafc; border: 1px solid #f1f5f9;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                   <div style="width: 34px; height: 34px; border-radius: 50%; background: var(--primary-container); color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0;">
@@ -149,7 +163,7 @@ export function renderDashboardView() {
                   <div>
                     <div style="font-size: 0.88rem; font-weight: 700; color: var(--on-surface);">${s.customerName}</div>
                     <div style="font-size: 0.75rem; color: var(--on-surface-variant); text-transform: capitalize;">
-                      ${s.skinType} Skin • ${s.concerns.length} Concerns
+                      ${s.skinType} Skin • ${(s.concerns || []).length} Concerns
                     </div>
                   </div>
                 </div>
@@ -165,7 +179,7 @@ export function renderDashboardView() {
                     </span>
                   `}
                   <div style="font-size: 0.7rem; color: var(--outline); margin-top: 2px;">
-                    ${new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    ${s.timestamp ? new Date(s.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
                   </div>
                 </div>
               </div>

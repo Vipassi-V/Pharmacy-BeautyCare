@@ -18,7 +18,8 @@ import {
   renderEndSessionConfirmModal,
   renderMobilePage,
   renderEndSessionScreen,
-  renderLoadingCardHtml
+  renderLoadingCardHtml,
+  renderTermsPrivacyModal
 } from './components/views.js';
 
 // Admin Views
@@ -37,6 +38,8 @@ let resetTimerInterval = null;
 let currentImportState = null;
 let activeEditingItem = null;
 let logoUploadState = null;
+let selectedSessionForDetail = null;
+let showTermsModal = false;
 
 let isRenderPending = false;
 export function scheduleRender() {
@@ -95,7 +98,7 @@ function render() {
           tabContent = renderImportWorkflowView(currentImportState);
           break;
         case 'reports':
-          tabContent = renderReportsView();
+          tabContent = renderReportsView(selectedSessionForDetail);
           break;
         case 'settings':
           tabContent = renderSettingsView(logoUploadState);
@@ -156,6 +159,7 @@ function render() {
     </main>
     ${renderQRModal(state)}
     ${renderEndSessionConfirmModal(state)}
+    ${showTermsModal ? renderTermsPrivacyModal() : ''}
     <!-- Subtle footer access to Admin -->
     <footer style="padding: 1rem; text-align: center; font-size: 0.75rem; color: var(--outline);">
       <a href="/?view=admin" style="color: var(--outline); text-decoration: none;">Pharmacist Portal Access</a>
@@ -239,6 +243,18 @@ function bindKioskEvents() {
   });
 
   document.getElementById('startConsultationBtn')?.addEventListener('click', () => sessionStore.setStep(2));
+
+  // Terms & Privacy modal
+  document.getElementById('openTermsPrivacyBtn')?.addEventListener('click', () => {
+    showTermsModal = true;
+    render();
+  });
+  const closeTerms = () => { showTermsModal = false; render(); };
+  document.getElementById('closeTermsPrivacyBtn')?.addEventListener('click', closeTerms);
+  document.getElementById('closeTermsPrivacyBottomBtn')?.addEventListener('click', closeTerms);
+  document.getElementById('termsPrivacyModalBackdrop')?.addEventListener('click', (e) => {
+    if (e.target.id === 'termsPrivacyModalBackdrop') closeTerms();
+  });
 
   // Anonymous guest consultation mode
   document.getElementById('continueAsGuestBtn')?.addEventListener('click', () => {
@@ -360,6 +376,10 @@ function bindMobileEvents() {
   document.getElementById('mobileHeaderHomeBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
     window.location.href = window.location.origin;
+  });
+
+  document.getElementById('downloadMobilePassBtn')?.addEventListener('click', () => {
+    window.print();
   });
 }
 
@@ -987,21 +1007,7 @@ function bindAdminEvents() {
     render();
   });
 
-  // --- Reports Events ---
-  document.getElementById('exportReportsCsvBtn')?.addEventListener('click', () => {
-    const rows = [
-      ["Session ID", "Customer Name", "Skin Type", "Concerns", "Severe Alert", "Date"],
-      ...adminStore.sessions.map(s => [s.id, s.customerName, s.skinType, s.concerns.join('; '), s.hasSevere ? 'Yes' : 'No', s.timestamp])
-    ];
-    const csvContent = rows.map(r => r.map(cell => `"${cell}"`).join(',')).join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ronit_consultation_reports_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
-    adminStore.showToast('Reports CSV exported successfully');
-  });
+  // (Reports CSV export handler is registered below alongside the full reports section)
 
   // --- Settings Events & Pharmacy Logo Management ---
   document.querySelectorAll('.setting-input').forEach(input => {
@@ -1115,6 +1121,92 @@ function bindAdminEvents() {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalBtnHtml;
       }
+    }
+  });
+
+  // --- Dashboard Action Buttons ---
+  document.getElementById('dashAddProductBtn')?.addEventListener('click', () => {
+    adminStore.setTab('products');
+    activeEditingItem = { type: 'product', data: null };
+    render();
+  });
+
+  document.getElementById('dashViewReportsBtn')?.addEventListener('click', () => {
+    adminStore.setTab('reports');
+  });
+
+  // --- Reports Events ---
+  document.getElementById('exportReportsCsvBtn')?.addEventListener('click', () => {
+    const sessions = adminStore.sessions || [];
+    if (sessions.length === 0) {
+      adminStore.showToast('No consultation logs available to export.', 'info');
+      return;
+    }
+
+    const headers = [
+      'Pass ID',
+      'Patient Name',
+      'Primary Skin Type',
+      'Selected Concerns',
+      'Severe Warning Flagged',
+      'Prescribed Products Count',
+      'Prescribed Regimen Items',
+      'Est Total Price (NPR)',
+      'Consultation Date & Time'
+    ];
+
+    const rows = sessions.map(s => {
+      const productList = (s.products || []).map(p => `${p.name || p.product_name} (Rs. ${p.price || 0})`).join('; ');
+      return [
+        `"${s.id}"`,
+        `"${(s.customerName || '').replace(/"/g, '""')}"`,
+        `"${(s.skinType || '').replace(/"/g, '""')}"`,
+        `"${(s.concerns || []).join(', ').replace(/"/g, '""')}"`,
+        s.hasSevere ? 'YES' : 'NO',
+        s.matchedProductsCount || (s.products || []).length,
+        `"${productList.replace(/"/g, '""')}"`,
+        s.totalEstimatedPrice || 0,
+        `"${s.timestamp ? new Date(s.timestamp).toLocaleString() : ''}"`
+      ];
+    });
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ronit-pharmacy-consultation-reports-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    adminStore.showToast('Consultation CSV report downloaded successfully.', 'success');
+  });
+
+  // View Session Details
+  document.querySelectorAll('.view-session-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.getAttribute('data-session-idx'));
+      if (adminStore.sessions && adminStore.sessions[idx]) {
+        selectedSessionForDetail = adminStore.sessions[idx];
+        scheduleRender();
+      }
+    });
+  });
+
+  // Close Session Detail Modal
+  document.getElementById('closeSessionDetailBtn')?.addEventListener('click', () => {
+    selectedSessionForDetail = null;
+    scheduleRender();
+  });
+  document.getElementById('closeSessionDetailBottomBtn')?.addEventListener('click', () => {
+    selectedSessionForDetail = null;
+    scheduleRender();
+  });
+  document.getElementById('sessionDetailBackdrop')?.addEventListener('click', (e) => {
+    if (e.target.id === 'sessionDetailBackdrop') {
+      selectedSessionForDetail = null;
+      scheduleRender();
     }
   });
 }

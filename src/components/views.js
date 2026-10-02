@@ -137,6 +137,12 @@ export function renderWelcomeScreen() {
           <strong style="color: var(--on-surface);">Clinical &amp; Legal Notice:</strong> 
           This kiosk provides cosmetic &amp; over-the-counter (OTC) skincare recommendations for general wellness. 
           It does <strong>not</strong> provide medical diagnoses, clinical prescriptions, or replace a medical consultation with a dermatologist. Please consult the on-duty pharmacist for medical concerns.
+          <div style="margin-top: 6px;">
+            <button type="button" id="openTermsPrivacyBtn" class="btn-ghost" style="display: inline-flex; align-items: center; gap: 4px; padding: 0; font-size: 0.78rem; text-decoration: underline; color: var(--primary); min-height: auto; font-weight: 600;">
+              <span>Read Pharmacy Terms of Service &amp; Privacy Policy</span>
+              <span class="material-symbols-outlined" style="font-size: 14px;">open_in_new</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1019,6 +1025,11 @@ export function renderMobilePage(state) {
           <div style="margin-top: 10px; background: #f0fdf4; border: 1px dashed var(--primary-fixed-dim); border-radius: 8px; padding: 8px 10px; text-align: center; font-size: 0.8rem; color: var(--primary-container); font-weight: 600;">
             👉 Show this screen to our pharmacist at the counter
           </div>
+
+          <button id="downloadMobilePassBtn" class="btn-secondary" style="width: 100%; margin-top: 10px; min-height: 42px; font-size: 0.875rem; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+            <span>Save / Download Regimen (PDF)</span>
+          </button>
         </div>
 
         ${hasSevere ? `
@@ -1080,6 +1091,103 @@ export function renderMobilePage(state) {
             ${phone ? `<div style="font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-top: 4px;">Phone: ${phone}</div>` : ''}
           </div>
         ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// 10. Terms of Service & Privacy Policy Modal
+export function renderTermsPrivacyModal() {
+  return `
+    <div id="termsPrivacyModalBackdrop" style="
+      position: fixed; inset: 0; z-index: 9000;
+      background: rgba(11, 28, 48, 0.65);
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    ">
+      <div style="
+        background: #ffffff;
+        border-radius: var(--radius-xl);
+        width: 100%; max-width: 680px;
+        max-height: 88vh;
+        display: flex; flex-direction: column;
+        box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+        overflow: hidden;
+      ">
+        <!-- Modal Header -->
+        <div style="padding: 1.5rem 1.75rem 1rem; border-bottom: 1px solid #e2e8f0; flex-shrink: 0;">
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 42px; height: 42px; border-radius: 12px; background: #f0fdf4; border: 1px solid var(--primary-fixed-dim); display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0;">
+                <span class="material-symbols-outlined" style="font-size: 22px;">gavel</span>
+              </div>
+              <div>
+                <div class="font-headline-sm" style="color: var(--on-surface);">Terms of Service &amp; Privacy Policy</div>
+                <div class="font-body-sm" style="color: var(--on-surface-variant); font-size: 0.8rem;">Ronit Pharmacy &amp; Beauty Care — Tansen, Palpa</div>
+              </div>
+            </div>
+            <button id="closeTermsPrivacyBtn" class="btn-ghost" style="min-height: 36px; padding: 0 0.75rem; border-radius: 8px;" aria-label="Close">
+              <span class="material-symbols-outlined" style="font-size: 20px;">close</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div id="termsScrollBody" style="overflow-y: auto; padding: 1.5rem 1.75rem; flex: 1; font-size: 0.875rem; color: var(--on-surface-variant); line-height: 1.7;">
+
+          <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1.5rem; display: flex; gap: 10px; align-items: flex-start;">
+            <span class="material-symbols-outlined" style="color: var(--tertiary); font-size: 18px; flex-shrink: 0; margin-top: 2px;">info</span>
+            <div style="font-size: 0.82rem; color: var(--tertiary);">
+              <strong>Important:</strong> This kiosk provides <strong>cosmetic and general wellness</strong> recommendations only. It is <strong>not</strong> a medical device and does not replace consultation with a licensed dermatologist or physician.
+            </div>
+          </div>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">1. Scope of Service</h2>
+          <p style="margin: 0 0 1.25rem;">The Ronit Pharmacy &amp; Beauty Care Skin Consultation Kiosk is an in-store digital tool designed to assist walk-in customers in identifying suitable over-the-counter (OTC) cosmetic and skincare products for general wellness. Recommendations generated are non-clinical and informational in nature.</p>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">2. Not a Medical Service</h2>
+          <p style="margin: 0 0 1.25rem;">Outputs from this system — including product suggestions, skin type assessments, and regimen passes — do <strong>not</strong> constitute medical advice, a clinical prescription, a dermatological diagnosis, or a substitute for professional healthcare. For persistent, severe, or unclear skin conditions, please consult a licensed physician or dermatologist.</p>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">3. Product Availability &amp; Pricing</h2>
+          <p style="margin: 0 0 1.25rem;">Product availability, stock, and pricing displayed or suggested by this kiosk are subject to change without notice. Final pricing and product availability must be confirmed at the Ronit Pharmacy counter. Ronit Pharmacy &amp; Beauty Care reserves the right to modify its product range, pricing, or promotions at any time.</p>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">4. Data &amp; Privacy</h2>
+          <p style="margin: 0 0 0.75rem;">We respect your privacy. Here is how data is handled:</p>
+          <ul style="margin: 0 0 1.25rem; padding-left: 1.25rem; display: flex; flex-direction: column; gap: 0.4rem;">
+            <li><strong>Session Data:</strong> Consultation sessions (skin type, selected concerns, recommended products) may be stored securely in our pharmacy management system to help pharmacists track consultation trends.</li>
+            <li><strong>No Personal Identification:</strong> You are not required to enter your real name. Consultations may be completed as an anonymous guest. Your data is not linked to any national identity or financial records.</li>
+            <li><strong>No Biometrics:</strong> This kiosk does not collect fingerprints, facial recognition data, or any biometric information.</li>
+            <li><strong>No Third-Party Sharing:</strong> Your session data is not sold, transferred, or shared with external marketing companies or third parties outside of pharmacy operations.</li>
+            <li><strong>Data Retention:</strong> Session records may be retained for up to 12 months for internal analytics purposes, after which they are permanently deleted.</li>
+            <li><strong>QR Pass:</strong> Your regimen QR code link is session-specific. Once a new consultation starts at this kiosk, the previous session link will no longer be accessible from the kiosk.</li>
+          </ul>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">5. Allergens &amp; Skin Sensitivity</h2>
+          <p style="margin: 0 0 1.25rem;">Ronit Pharmacy &amp; Beauty Care cannot accept liability for allergic reactions or adverse skin responses to OTC products. Always perform a patch test before applying any new skincare product. If you have known allergies, sensitivities, or are on prescription medication, consult the on-duty pharmacist before purchasing any recommended product.</p>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">6. Limitation of Liability</h2>
+          <p style="margin: 0 0 1.25rem;">To the maximum extent permitted by applicable law, Ronit Pharmacy &amp; Beauty Care shall not be liable for any direct, indirect, incidental, or consequential damages arising from reliance on kiosk-generated recommendations. Use of this kiosk is entirely voluntary and at the customer's own discretion.</p>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">7. Consent</h2>
+          <p style="margin: 0 0 1.25rem;">By proceeding to use this kiosk and starting a consultation, you acknowledge that you have read and understood these terms, and you consent to the data practices outlined in Section 4.</p>
+
+          <h2 style="font-size: 1rem; font-weight: 700; color: var(--on-surface); margin: 0 0 0.5rem;">8. Contact &amp; Pharmacist Assistance</h2>
+          <p style="margin: 0 0 1.5rem;">For any questions regarding these terms, your session data, or to request data deletion, please speak directly to our on-duty pharmacist at the Ronit Pharmacy &amp; Beauty Care counter in Tansen, Palpa.</p>
+
+          <div style="font-size: 0.78rem; color: var(--outline); border-top: 1px solid #e2e8f0; padding-top: 1rem;">
+            Last updated: October 2025 &nbsp;·&nbsp; Ronit Pharmacy &amp; Beauty Care, Tansen, Palpa, Nepal
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="padding: 1rem 1.75rem; border-top: 1px solid #e2e8f0; flex-shrink: 0; display: flex; justify-content: flex-end;">
+          <button id="closeTermsPrivacyBottomBtn" class="btn-primary" style="min-height: 44px; padding: 0 1.75rem;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">check_circle</span>
+            <span>I Understand — Close</span>
+          </button>
+        </div>
       </div>
     </div>
   `;

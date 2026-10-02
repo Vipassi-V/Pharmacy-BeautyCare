@@ -34,7 +34,7 @@ class AdminStore {
       requirePharmacistOverride: true
     });
 
-    this.sessions = this.load('rp_sessions', this.generateMockSessions());
+    this.sessions = this.load('rp_sessions', []);
     this.activeModal = null;
     this.toast = null;
     this.isDirty = false;
@@ -1156,27 +1156,35 @@ class AdminStore {
           id,
           first_name,
           surname,
+          selected_skin_type,
           is_severe_flagged,
           recommendation_snapshot,
           created_at
         `)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(50);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
         this.sessions = data.map(s => {
           const snap = s.recommendation_snapshot || {};
-          const concerns = (snap.concerns || []).map(c => c.name || c.id);
+          const concerns = (snap.concerns || []).map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
+          const products = snap.products || [];
+          const totalEstimatedPrice = products.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+          const skinType = s.selected_skin_type || (snap.skinType && snap.skinType.name) || 'Mountain Normal/Dry';
+
           return {
-            id: s.id.substring(0, 8).toUpperCase(),
-            customerName: `${s.first_name} ${s.surname}`,
-            skinType: 'Mountain Normal/Dry',
+            id: s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : s.id,
+            rawId: s.id,
+            customerName: `${s.first_name || ''} ${s.surname || ''}`.trim() || 'Walk-In Patient',
+            skinType: skinType,
             concerns: concerns.length > 0 ? concerns : ['General Skincare'],
             hasSevere: !!s.is_severe_flagged,
             timestamp: s.created_at,
-            matchedProductsCount: (snap.products || []).length || 3
+            products: products,
+            matchedProductsCount: products.length,
+            totalEstimatedPrice: totalEstimatedPrice
           };
         });
         this.save('rp_sessions', this.sessions);
@@ -1206,15 +1214,6 @@ class AdminStore {
         }
       });
     });
-
-    if (Object.values(concernTally).every(item => item.count === 0)) {
-      const keys = Object.keys(concernTally);
-      if (keys[0]) concernTally[keys[0]].count = 48;
-      if (keys[1]) concernTally[keys[1]].count = 36;
-      if (keys[2]) concernTally[keys[2]].count = 28;
-      if (keys[3]) concernTally[keys[3]].count = 19;
-      if (keys[4]) concernTally[keys[4]].count = 12;
-    }
 
     const total = Object.values(concernTally).reduce((acc, curr) => acc + curr.count, 0);
 
