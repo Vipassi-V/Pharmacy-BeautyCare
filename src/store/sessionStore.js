@@ -412,27 +412,29 @@ class SessionStore {
 
     try {
       // 1. Insert into sessions
+      let createdSessionId = null;
       const { data: sessionData, error: sessionErr } = await supabase
         .from('sessions')
         .insert([sessionPayload])
         .select();
 
-      if (sessionErr) {
-        if (sessionErr.code === '42501' || sessionErr.message?.includes('row-level security') || sessionErr.message?.includes('policy')) {
-          console.error(
-            '[saveSessionToSupabase] RLS POLICY ERROR — The "anon" role lacks INSERT permission on the sessions table.\n' +
-            'ACTION REQUIRED: Run the SQL in SUPABASE-RLS-SETUP.sql via Supabase Dashboard → SQL Editor.\n' +
-            'Consultation is saved locally in the admin panel.'
-          );
+      if (!sessionErr && sessionData && sessionData.length > 0) {
+        createdSessionId = sessionData[0].id;
+      } else {
+        // Fallback: If .select() fails due to RLS read permissions, try plain insert
+        console.warn('Supabase session insert with .select() note:', sessionErr?.message, '— attempting plain insert');
+        const { error: plainErr } = await supabase
+          .from('sessions')
+          .insert([sessionPayload]);
+
+        if (plainErr) {
+          console.error('[saveSessionToSupabase] Supabase plain insert error:', plainErr.message || plainErr);
         } else {
-          console.warn('Supabase sessions insert note:', sessionErr.message || sessionErr);
+          console.info('Session recorded in Supabase (plain insert mode).');
         }
-        return;
       }
 
-      if (sessionData && sessionData.length > 0) {
-        const createdSessionId = sessionData[0].id;
-
+      if (createdSessionId) {
         // Update local session with DB ID if needed
         localSession.rawId = createdSessionId;
         localSession.id = createdSessionId.length > 8 ? createdSessionId.substring(0, 8).toUpperCase() : createdSessionId;
@@ -463,10 +465,10 @@ class SessionStore {
           }));
           await supabase.from('session_products').insert(productRows).catch(e => console.warn('session_products insert note:', e));
         }
-
-        // Refresh admin sessions view from Supabase
-        adminStore.fetchSessions();
       }
+
+      // Refresh admin sessions view from Supabase
+      adminStore.fetchSessions();
     } catch (err) {
       console.warn('Session save exception:', err);
     }

@@ -1279,10 +1279,17 @@ class AdminStore {
           };
         });
 
-        // Supabase is the single source of truth across all devices
-        this.sessions = fetched;
-        this.save('rp_sessions', this.sessions);
-        this.notify();
+        if (fetched.length > 0) {
+          const merged = [...fetched];
+          this.sessions.forEach(local => {
+            if (!merged.some(f => f.id === local.id || (local.rawId && f.rawId === local.rawId))) {
+              merged.push(local);
+            }
+          });
+          this.sessions = merged;
+          this.save('rp_sessions', this.sessions);
+          this.notify();
+        }
       }
     } catch (e) {
       console.warn('Sessions Supabase fetch note:', e.message || e);
