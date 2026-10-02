@@ -44,13 +44,21 @@ npm run dev
 ```
 Open [http://localhost:5173/](http://localhost:5173/) in your browser.
 
-### Production Build
+### Environment Setup
+Create a `.env` file based on `.env.example`:
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_CLOUDINARY_CLOUD_NAME=your-cloud-name
+VITE_CLOUDINARY_UPLOAD_PRESET=your-preset
+```
+
+### Production Build & Deployment (Vercel)
 ```bash
 npm run build
 ```
-The optimized bundle will be generated in `dist/`.
+1. Push to GitHub.
+2. Import project in [Vercel](https://vercel.com).
+3. Set the Environment Variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_UPLOAD_PRESET`).
+4. Automated keepalive cron jobs (`vercel.json` & `.github/workflows/keep-alive-supabase.yml`) run automatically.
 
----
-
-## 🎨 Design Reference
-Refer to [`DESIGN.md`](./DESIGN.md) for the complete design system token specifications, typography, spacing rhythm, and screen inventory.
