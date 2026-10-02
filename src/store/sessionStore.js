@@ -396,8 +396,19 @@ class SessionStore {
         .select();
 
       if (sessionErr) {
-        console.warn('Supabase sessions insert note:', sessionErr.message || sessionErr);
-      } else if (sessionData && sessionData.length > 0) {
+        if (sessionErr.code === '42501' || sessionErr.message?.includes('row-level security') || sessionErr.message?.includes('policy')) {
+          console.error(
+            '[saveSessionToSupabase] RLS POLICY ERROR — The "anon" role lacks INSERT permission on the sessions table.\n' +
+            'ACTION REQUIRED: Run the SQL in SUPABASE-RLS-SETUP.sql via Supabase Dashboard → SQL Editor.\n' +
+            'The kiosk will still work, but sessions will not be saved to Supabase until this is fixed.'
+          );
+        } else {
+          console.warn('Supabase sessions insert note:', sessionErr.message || sessionErr);
+        }
+        // Allow kiosk to continue — session save is non-blocking
+        return;
+      }
+
         const createdSessionId = sessionData[0].id;
 
         // 2. Insert session concerns
@@ -428,11 +439,11 @@ class SessionStore {
 
         // Refresh admin sessions view
         adminStore.fetchSessions();
-      }
     } catch (err) {
       console.warn('Session save exception:', err);
     }
   }
+
 
   clearSession() {
     this.reset();
