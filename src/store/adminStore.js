@@ -1180,7 +1180,10 @@ class AdminStore {
 
   async fetchSessions() {
     try {
-      const { data, error } = await supabase
+      let data = null;
+
+      // 1. Attempt relational query with joined tables
+      const res = await supabase
         .from('sessions')
         .select(`
           id,
@@ -1189,27 +1192,85 @@ class AdminStore {
           selected_skin_type,
           is_severe_flagged,
           recommendation_snapshot,
-          created_at
+          created_at,
+          session_concerns (
+            skin_problem_name,
+            is_severe
+          ),
+          session_products (
+            product_name,
+            brand,
+            category_name,
+            price,
+            instruction
+          )
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
 
-      if (error) throw error;
+      if (res.error) {
+        // 2. Fallback to direct sessions table select if joined tables have RLS limits
+        const fallbackRes = await supabase
+          .from('sessions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-      if (data && data.length > 0) {
+        if (fallbackRes.error) throw fallbackRes.error;
+        data = fallbackRes.data;
+      } else {
+        data = res.data;
+      }
+
+      if (data && Array.isArray(data)) {
         const fetched = data.map(s => {
-          const snap = s.recommendation_snapshot || {};
-          const concerns = (snap.concerns || []).map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
-          const products = snap.products || [];
+          let snap = {};
+          if (typeof s.recommendation_snapshot === 'string') {
+            try { snap = JSON.parse(s.recommendation_snapshot); } catch {}
+          } else if (s.recommendation_snapshot && typeof s.recommendation_snapshot === 'object') {
+            snap = s.recommendation_snapshot;
+          }
+
+          // Extract concerns from snapshot or joined session_concerns
+          let concerns = [];
+          if (snap.concerns && Array.isArray(snap.concerns) && snap.concerns.length > 0) {
+            concerns = snap.concerns.map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
+          } else if (s.session_concerns && Array.isArray(s.session_concerns) && s.session_concerns.length > 0) {
+            concerns = s.session_concerns.map(c => c.skin_problem_name).filter(Boolean);
+          }
+          if (concerns.length === 0) concerns = ['General Skincare'];
+
+          // Extract products from snapshot or joined session_products
+          let products = [];
+          if (snap.products && Array.isArray(snap.products) && snap.products.length > 0) {
+            products = snap.products;
+          } else if (s.session_products && Array.isArray(s.session_products) && s.session_products.length > 0) {
+            products = s.session_products.map(p => ({
+              name: p.product_name,
+              brand: p.brand,
+              category: p.category_name,
+              price: Number(p.price) || 0,
+              instruction: p.instruction || ''
+            }));
+          }
+
           const totalEstimatedPrice = products.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-          const skinType = s.selected_skin_type || (snap.skinType && snap.skinType.name) || 'Mountain Normal/Dry';
+          const customerName = `${s.first_name || ''} ${s.surname || ''}`.trim() 
+            || s.customer_name 
+            || s.patient_name 
+            || (snap.customer && `${snap.customer.firstName || ''} ${snap.customer.lastName || ''}`.trim())
+            || 'Walk-In Patient';
+
+          const skinType = s.selected_skin_type 
+            || (snap.skinType && snap.skinType.name) 
+            || 'Mountain Normal/Dry';
 
           return {
-            id: s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : s.id,
+            id: s.id && s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : (s.id || 'SESSION'),
             rawId: s.id,
-            customerName: `${s.first_name || ''} ${s.surname || ''}`.trim() || 'Walk-In Patient',
+            customerName: customerName,
             skinType: skinType,
-            concerns: concerns.length > 0 ? concerns : ['General Skincare'],
+            concerns: concerns,
             hasSevere: !!s.is_severe_flagged,
             timestamp: s.created_at,
             products: products,
@@ -1218,15 +1279,8 @@ class AdminStore {
           };
         });
 
-        // Merge fetched remote sessions with existing local sessions
-        const merged = [...fetched];
-        this.sessions.forEach(local => {
-          if (!merged.some(f => f.id === local.id || (local.rawId && f.rawId === local.rawId))) {
-            merged.push(local);
-          }
-        });
-
-        this.sessions = merged;
+        // Supabase is the single source of truth across all devices
+        this.sessions = fetched;
         this.save('rp_sessions', this.sessions);
         this.notify();
       }
