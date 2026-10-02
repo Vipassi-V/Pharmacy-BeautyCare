@@ -1,0 +1,29 @@
+name: Keep Supabase Active
+
+on:
+  schedule:
+    # Runs every 3 days at 04:00 UTC (prevent 7-day inactivity pause)
+    - cron: '0 4 */3 * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Database
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://ccxholtuuaybwqxkpgie.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjeGhvbHR1dWF5YndxeGtwZ2llIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3Mzk1MTAsImV4cCI6MjEwNTMxNTUxMH0.i6MPcxgbCjmMgQAoPYSqIjmh61G69wDD9lGowOc_ZRk' }}
+        run: |
+          echo "Pinging Supabase REST endpoint to keep project active..."
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/app_settings?select=setting_key&limit=1")
+          
+          echo "Supabase Response HTTP Status: $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "✅ Supabase project successfully pinged! Project remains active."
+          else
+            echo "⚠️ Warning: Ping received status code $HTTP_STATUS"
+          fi
