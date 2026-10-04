@@ -355,19 +355,21 @@ export function renderConcernsScreen(state) {
     const cardsHtml = concernsList.map(concern => {
       const isSelected = state.selectedConcernIds.includes(concern.id);
       const isExpanded = state.expandedConcernIds.includes(concern.id);
+      const hasExtraDetails = Boolean(concern.description && concern.description.trim() && concern.description.trim() !== (concern.summary || '').trim());
+      const isSevere = Boolean(concern.isSevere || concern.is_severe);
 
       return `
         <div class="concern-card ${isSelected ? 'selected' : ''}" data-concern-id="${concern.id}">
-          <!-- Image without decorative tags -->
-          <img src="${concern.image}" alt="${concern.title}" class="concern-header-img" loading="lazy" />
+          <!-- Image -->
+          <img src="${concern.image || 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=600&q=80'}" alt="${concern.title || concern.name}" class="concern-header-img" loading="lazy" />
 
-          <!-- Card Body (Toggles description expansion) -->
-          <div class="concern-body" data-action="toggle-expand">
+          <!-- Card Body -->
+          <div class="concern-body">
             <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
               <h3 class="font-headline-sm" style="color: var(--on-surface); font-size: 1.15rem; line-height: 1.3;">
-                ${concern.title}
+                ${concern.title || concern.name}
               </h3>
-              ${concern.isSevere || concern.is_severe ? `
+              ${isSevere ? `
                 <span style="display: inline-flex; align-items: center; gap: 3px; color: var(--tertiary); background: var(--warning-wash); padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; border: 1px solid #fcd34d;">
                   <span class="material-symbols-outlined" style="font-size: 14px;">priority_high</span>
                   Severe
@@ -375,33 +377,62 @@ export function renderConcernsScreen(state) {
               ` : ''}
             </div>
 
-            <div class="font-label-sm" style="color: var(--secondary); margin-bottom: 8px;">
+            <div class="font-label-sm" style="color: var(--secondary); margin-bottom: 8px; font-weight: 600;">
               ${concern.nepaliTitle || ''}
             </div>
 
-            <div class="concern-description-drawer">
-              ${isExpanded ? concern.description : (concern.summary || concern.description)}
+            <!-- Summary Text -->
+            <div class="concern-summary-text" style="font-size: 0.875rem; color: var(--on-surface-variant); line-height: 1.5; margin-bottom: 0.75rem;">
+              ${concern.summary || concern.description || 'Clinical skin condition monitored by Ronit Pharmacy.'}
             </div>
 
-            <button type="button" class="expand-toggle">
-              <span>${isExpanded ? 'Show Less' : 'Read Clinical Details'}</span>
-              <span class="material-symbols-outlined" style="font-size: 18px;">
-                ${isExpanded ? 'expand_less' : 'expand_more'}
-              </span>
-            </button>
+            <!-- Expandable Clinical Details Drawer -->
+            ${hasExtraDetails ? `
+              <div 
+                id="concern-details-${concern.id}" 
+                class="concern-clinical-drawer ${isExpanded ? 'expanded' : 'collapsed'}"
+                style="${isExpanded ? 'display: block; margin-bottom: 0.75rem;' : 'display: none;'}"
+              >
+                <div style="background: #f0fdf4; border: 1px solid var(--primary-fixed-dim); border-radius: var(--radius-md); padding: 0.85rem; font-size: 0.825rem; color: #004c22; line-height: 1.5;">
+                  <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 4px; color: var(--primary);">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">medical_services</span>
+                    <span>Approved Clinical Guidance</span>
+                  </div>
+                  <div>${concern.description}</div>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                class="expand-toggle" 
+                aria-expanded="${isExpanded ? 'true' : 'false'}"
+                aria-controls="concern-details-${concern.id}"
+                aria-label="${isExpanded ? 'Hide clinical details for' : 'Read clinical details for'} ${concern.title || concern.name}"
+              >
+                <span>${isExpanded ? 'Hide Details' : 'Read Clinical Details'}</span>
+                <span class="material-symbols-outlined" style="font-size: 18px;">
+                  ${isExpanded ? 'expand_less' : 'expand_more'}
+                </span>
+              </button>
+            ` : `
+              <div style="font-size: 0.775rem; color: var(--outline); display: flex; align-items: center; gap: 4px; padding: 4px 0;">
+                <span class="material-symbols-outlined" style="font-size: 14px;">check_circle</span>
+                <span>Standard Monograph</span>
+              </div>
+            `}
           </div>
 
           <!-- Card Footer Actions: Add / Added Toggle -->
           <div class="concern-actions">
             <div class="font-body-sm" style="color: var(--outline); font-size: 0.85rem;">
-              ${isSelected ? '<span style="color: var(--primary); font-weight: 600;">Selected</span>' : 'Tap Add to include'}
+              ${isSelected ? '<span style="color: var(--primary); font-weight: 600;">Selected</span>' : 'Tap to select'}
             </div>
 
             <button 
               type="button" 
               class="btn-add-concern ${isSelected ? 'selected' : 'unselected'}" 
               data-action="toggle-add"
-              aria-label="${isSelected ? 'Remove' : 'Add'} ${concern.title}"
+              aria-label="${isSelected ? 'Remove' : 'Add'} ${concern.title || concern.name}"
             >
               <span class="material-symbols-outlined" style="font-size: 18px;">
                 ${isSelected ? 'check' : 'add'}

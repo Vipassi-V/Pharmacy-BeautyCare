@@ -41,6 +41,41 @@ let logoUploadState = null;
 let selectedSessionForDetail = null;
 let showTermsModal = false;
 
+// Kiosk inactivity timer
+let inactivityTimerHandle = null;
+let inactivityListenersAttached = false;
+const INACTIVITY_EVENTS = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
+
+function getInactivityTimeoutMs() {
+  return (adminStore.settings?.inactivityTimeoutSeconds || 180) * 1000;
+}
+
+function resetInactivityTimer() {
+  if (inactivityTimerHandle) clearTimeout(inactivityTimerHandle);
+  inactivityTimerHandle = setTimeout(() => {
+    const state = sessionStore.getState();
+    // Only auto-reset during active kiosk steps (2-8), never on step 1 or 9
+    if (state.currentStep >= 2 && state.currentStep <= 8) {
+      console.info('[Inactivity] Timeout reached — resetting kiosk to welcome screen');
+      sessionStore.clearSession();
+    }
+  }, getInactivityTimeoutMs());
+}
+
+function attachInactivityListeners() {
+  if (inactivityListenersAttached) return;
+  inactivityListenersAttached = true;
+  INACTIVITY_EVENTS.forEach(evt => window.addEventListener(evt, resetInactivityTimer, { passive: true }));
+  resetInactivityTimer();
+}
+
+function detachInactivityListeners() {
+  if (!inactivityListenersAttached) return;
+  inactivityListenersAttached = false;
+  INACTIVITY_EVENTS.forEach(evt => window.removeEventListener(evt, resetInactivityTimer));
+  if (inactivityTimerHandle) { clearTimeout(inactivityTimerHandle); inactivityTimerHandle = null; }
+}
+
 let isRenderPending = false;
 export function scheduleRender() {
   if (isRenderPending) return;
@@ -60,6 +95,7 @@ function render() {
 
   // 1. Mobile Handover View
   if (isExplicitMobile || sessionStore.getState().isMobileView) {
+    detachInactivityListeners();
     app.innerHTML = renderMobilePage(sessionStore.getState());
     bindMobileEvents();
     return;
@@ -67,6 +103,7 @@ function render() {
 
   // 2. Admin Portal View
   if (isExplicitAdmin) {
+    detachInactivityListeners();
     if (!adminStore.isAuthenticated) {
       app.innerHTML = renderAdminLogin();
       bindAdminLoginEvents();
@@ -122,8 +159,15 @@ function render() {
   }
 
   // 3. Customer Tablet Kiosk View
+  // Manage inactivity timer: attach during active steps, detach on idle steps
   const state = sessionStore.getState();
   let screenContent = '';
+
+  if (state.currentStep >= 2 && state.currentStep <= 8) {
+    attachInactivityListeners();
+  } else {
+    detachInactivityListeners();
+  }
 
   switch (state.currentStep) {
     case 1:
@@ -463,6 +507,33 @@ function bindAdminEvents() {
       adminStore.setTab(tab);
     });
   });
+
+  // Dashboard: Refresh sessions from Supabase
+  document.getElementById('dashRefreshSessionsBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const icon = btn.querySelector('.material-symbols-outlined');
+    if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+    btn.disabled = true;
+    await adminStore.fetchSessions();
+    btn.disabled = false;
+    if (icon) icon.style.animation = '';
+  });
+
+  // Reports: Refresh sessions from Supabase
+  document.getElementById('reportsRefreshSessionsBtn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const icon = btn.querySelector('.material-symbols-outlined');
+    if (icon) icon.style.animation = 'spin 0.8s linear infinite';
+    btn.disabled = true;
+    await adminStore.fetchSessions();
+    btn.disabled = false;
+    if (icon) icon.style.animation = '';
+  });
+
+  // Dashboard quick-nav buttons
+  document.getElementById('dashViewReportsBtn')?.addEventListener('click', () => adminStore.setTab('reports'));
+  document.getElementById('dashAddProductBtn')?.addEventListener('click', () => adminStore.setTab('products'));
+  document.getElementById('dashSeeAllSessionsBtn')?.addEventListener('click', () => adminStore.setTab('reports'));
 
   // Switch to Kiosk
   document.getElementById('adminKioskSwitchBtn')?.addEventListener('click', () => {

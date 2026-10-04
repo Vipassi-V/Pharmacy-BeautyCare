@@ -24,7 +24,11 @@ export function renderDashboardView() {
           </p>
         </div>
 
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+          <button class="btn-ghost" id="dashRefreshSessionsBtn" title="Re-fetch sessions from Supabase" style="min-height: 40px; font-size: 0.85rem; padding: 0 0.85rem; gap: 6px; color: var(--on-surface-variant);">
+            <span class="material-symbols-outlined" style="font-size: 18px;">sync</span>
+            <span>Refresh</span>
+          </button>
           <button class="btn-secondary" id="dashAddProductBtn" style="min-height: 44px; font-size: 0.9rem; padding: 0 1rem;">
             <span class="material-symbols-outlined" style="font-size: 18px;">add</span>
             <span>Add Product</span>

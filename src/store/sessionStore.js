@@ -132,12 +132,19 @@ class SessionStore {
     return mockSkinTypes.find(t => t.id === this.selectedSkinTypeId) || null;
   }
 
-  // Sourced strictly from active Supabase catalog
+  // Sourced strictly from active Supabase catalog or validated mock catalog
   getActiveSkinConcerns() {
+    let source = [];
     if (adminStore.skinProblems && adminStore.skinProblems.length > 0) {
-      return adminStore.skinProblems.filter(p => p.status === 'active' || p.is_active === true);
+      source = adminStore.skinProblems;
+    } else {
+      source = mockConcerns;
     }
-    return [];
+    return source.filter(p => {
+      const isActive = p.status === 'active' || p.is_active === true;
+      const hasTitle = Boolean(p.title || p.name);
+      return isActive && hasTitle;
+    });
   }
 
   getSelectedConcerns() {
@@ -151,32 +158,41 @@ class SessionStore {
   }
 
   getActiveCategories() {
+    let source = [];
     if (adminStore.categories && adminStore.categories.length > 0) {
-      return adminStore.categories.filter(c => c.status === 'active' || c.is_active === true);
+      source = adminStore.categories;
+    } else {
+      source = mockCategories;
     }
-    return [];
+    return source.filter(c => (c.status === 'active' || c.is_active === true) && Boolean(c.name));
   }
 
   getActiveProducts() {
+    let source = [];
     if (adminStore.products && adminStore.products.length > 0) {
-      return adminStore.products.filter(p => p.status === 'active' || p.is_active === true);
+      source = adminStore.products;
+    } else {
+      source = mockProducts;
     }
-    return [];
+    return source.filter(p => {
+      const isActive = p.status === 'active' || p.is_active === true;
+      const hasName = Boolean(p.name);
+      return isActive && hasName;
+    });
   }
 
   // Save session state to localStorage for offline persistence across tabs
   saveToLocalStorage() {
     try {
-      const payload = {
-        sessionId: this.sessionId,
-        customer: this.customer,
-        selectedSkinTypeId: this.selectedSkinTypeId,
-        selectedConcernIds: this.selectedConcernIds,
-        createdAt: this.createdAt
-      };
-      localStorage.setItem('rp_current_session', JSON.stringify(payload));
-      if (this.sessionId) {
-        localStorage.setItem(`rp_session_${this.sessionId}`, JSON.stringify(payload));
+      if (this.currentStep > 1 && this.currentStep < 9) {
+        const payload = {
+          sessionId: this.sessionId,
+          customer: this.customer,
+          selectedSkinTypeId: this.selectedSkinTypeId,
+          selectedConcernIds: this.selectedConcernIds,
+          createdAt: this.createdAt
+        };
+        localStorage.setItem('rp_current_session', JSON.stringify(payload));
       }
     } catch {}
   }
@@ -476,6 +492,19 @@ class SessionStore {
 
 
   clearSession() {
+    try {
+      localStorage.removeItem('rp_current_session');
+    } catch {}
+    // Strip any session-related URL params so a page reload doesn't restore old state
+    try {
+      const url = new URL(window.location.href);
+      const kioskParams = ['session', 'view', 'st', 'c', 'fn', 'ln'];
+      let changed = false;
+      kioskParams.forEach(k => { if (url.searchParams.has(k)) { url.searchParams.delete(k); changed = true; } });
+      if (changed) {
+        window.history.replaceState({}, '', url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : ''));
+      }
+    } catch {}
     this.reset();
     this.notify();
   }

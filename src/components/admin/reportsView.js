@@ -20,10 +20,16 @@ export function renderReportsView(selectedSession = null) {
           </p>
         </div>
 
-        <button class="btn-primary" id="exportReportsCsvBtn" style="min-height: 44px; font-size: 0.9rem; padding: 0 1.25rem;">
-          <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
-          <span>Export Full CSV Report</span>
-        </button>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+          <button class="btn-ghost" id="reportsRefreshSessionsBtn" title="Re-fetch sessions from Supabase" style="min-height: 40px; font-size: 0.85rem; padding: 0 0.85rem; gap: 6px; color: var(--on-surface-variant);">
+            <span class="material-symbols-outlined" style="font-size: 18px;">sync</span>
+            <span>Refresh</span>
+          </button>
+          <button class="btn-primary" id="exportReportsCsvBtn" style="min-height: 44px; font-size: 0.9rem; padding: 0 1.25rem;">
+            <span class="material-symbols-outlined" style="font-size: 18px;">download</span>
+            <span>Export Full CSV Report</span>
+          </button>
+        </div>
       </div>
 
       <!-- Section 1: KPI Analytics Overview Cards -->

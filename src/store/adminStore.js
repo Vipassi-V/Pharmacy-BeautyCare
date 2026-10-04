@@ -35,6 +35,8 @@ class AdminStore {
     });
 
     this.sessions = this.load('rp_sessions', []);
+    this._sessionsFetchedFromSupabase = false; // true once we get a successful DB read
+    this._realtimeChannel = null;
     this.activeModal = null;
     this.toast = null;
     this.isDirty = false;
@@ -44,20 +46,20 @@ class AdminStore {
 
     // Check for an existing active Supabase session on startup
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        this.isAuthenticated = true;
-      }
+      this.isAuthenticated = Boolean(session?.user);
       this.refreshAll();
     }).catch(() => {
+      this.isAuthenticated = false;
       this.refreshAll();
     });
 
     // Keep session in sync across tabs or token refresh
     supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT' || !session?.user) {
         const wasAuthed = this.isAuthenticated;
         this.isAuthenticated = false;
         this.currentTab = 'dashboard';
+        this.unsubscribeFromSessionsRealtime();
         if (wasAuthed) {
           this.fetchSettings();
           this.notify();
@@ -114,6 +116,8 @@ class AdminStore {
         this.fetchSessions()
       ]);
       this.catalogFetchError = null;
+      // Subscribe to realtime session inserts so all devices stay in sync
+      this.subscribeToSessionsRealtime();
     } catch (err) {
       console.warn('Catalog refresh error:', err);
       this.catalogFetchError = err.message || 'Connection error while loading catalog.';
@@ -122,6 +126,44 @@ class AdminStore {
       this.updateCounts();
       this.notify();
     }
+  }
+
+  // --- Supabase Realtime: live session INSERT listener ---
+  subscribeToSessionsRealtime() {
+    // Only one channel at a time
+    if (this._realtimeChannel) return;
+    try {
+      this._realtimeChannel = supabase
+        .channel('sessions-inserts')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'sessions' },
+          (_payload) => {
+            // A new session was inserted on any device — re-fetch to stay in sync
+            console.info('[Realtime] New session INSERT detected — refreshing sessions list.');
+            this.fetchSessions();
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.info('[Realtime] sessions-inserts channel active.');
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('[Realtime] sessions-inserts channel error:', status);
+            this._realtimeChannel = null;
+          }
+        });
+    } catch (err) {
+      console.warn('[Realtime] Could not subscribe to sessions channel:', err);
+      this._realtimeChannel = null;
+    }
+  }
+
+  unsubscribeFromSessionsRealtime() {
+    if (!this._realtimeChannel) return;
+    try {
+      supabase.removeChannel(this._realtimeChannel);
+    } catch {}
+    this._realtimeChannel = null;
   }
 
   /**
@@ -259,10 +301,14 @@ class AdminStore {
 
   async logout() {
     this.isAuthenticated = false;
+    this.unsubscribeFromSessionsRealtime();
     localStorage.removeItem('rp_admin_auth');
+    localStorage.removeItem('rp_admin_email');
     try {
       await supabase.auth.signOut();
-    } catch {}
+    } catch (e) {
+      console.warn('Supabase signOut note:', e);
+    }
     this.currentTab = 'dashboard';
     this.notify();
   }
@@ -460,7 +506,7 @@ class AdminStore {
           title: row.name || row.title || 'Skin Condition',
           name: row.name || row.title,
           description: row.description,
-          summary: row.description ? row.description.substring(0, 110) + '...' : '',
+          summary: row.description && row.description.length > 110 ? row.description.substring(0, 110) + '...' : (row.description || ''),
           nepaliTitle: row.nepali_title || '',
           image: row.image_path || 'https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?auto=format&fit=crop&w=300&q=80',
           image_path: row.image_path,
@@ -1181,6 +1227,7 @@ class AdminStore {
   async fetchSessions() {
     try {
       let data = null;
+      let usedFallback = false;
 
       // 1. Attempt relational query with joined tables
       const res = await supabase
@@ -1206,93 +1253,106 @@ class AdminStore {
           )
         `)
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (res.error) {
+        console.warn('[fetchSessions] Relational query failed, trying simple select:', res.error.message);
         // 2. Fallback to direct sessions table select if joined tables have RLS limits
         const fallbackRes = await supabase
           .from('sessions')
           .select('*')
           .order('created_at', { ascending: false })
-          .limit(100);
+          .limit(200);
 
         if (fallbackRes.error) throw fallbackRes.error;
         data = fallbackRes.data;
+        usedFallback = true;
       } else {
         data = res.data;
       }
 
-      if (data && Array.isArray(data)) {
-        const fetched = data.map(s => {
-          let snap = {};
-          if (typeof s.recommendation_snapshot === 'string') {
-            try { snap = JSON.parse(s.recommendation_snapshot); } catch {}
-          } else if (s.recommendation_snapshot && typeof s.recommendation_snapshot === 'object') {
-            snap = s.recommendation_snapshot;
-          }
+      if (!Array.isArray(data)) return;
 
-          // Extract concerns from snapshot or joined session_concerns
-          let concerns = [];
-          if (snap.concerns && Array.isArray(snap.concerns) && snap.concerns.length > 0) {
-            concerns = snap.concerns.map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
-          } else if (s.session_concerns && Array.isArray(s.session_concerns) && s.session_concerns.length > 0) {
-            concerns = s.session_concerns.map(c => c.skin_problem_name).filter(Boolean);
-          }
-          if (concerns.length === 0) concerns = ['General Skincare'];
-
-          // Extract products from snapshot or joined session_products
-          let products = [];
-          if (snap.products && Array.isArray(snap.products) && snap.products.length > 0) {
-            products = snap.products;
-          } else if (s.session_products && Array.isArray(s.session_products) && s.session_products.length > 0) {
-            products = s.session_products.map(p => ({
-              name: p.product_name,
-              brand: p.brand,
-              category: p.category_name,
-              price: Number(p.price) || 0,
-              instruction: p.instruction || ''
-            }));
-          }
-
-          const totalEstimatedPrice = products.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-          const customerName = `${s.first_name || ''} ${s.surname || ''}`.trim() 
-            || s.customer_name 
-            || s.patient_name 
-            || (snap.customer && `${snap.customer.firstName || ''} ${snap.customer.lastName || ''}`.trim())
-            || 'Walk-In Patient';
-
-          const skinType = s.selected_skin_type 
-            || (snap.skinType && snap.skinType.name) 
-            || 'Mountain Normal/Dry';
-
-          return {
-            id: s.id && s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : (s.id || 'SESSION'),
-            rawId: s.id,
-            customerName: customerName,
-            skinType: skinType,
-            concerns: concerns,
-            hasSevere: !!s.is_severe_flagged,
-            timestamp: s.created_at,
-            products: products,
-            matchedProductsCount: products.length,
-            totalEstimatedPrice: totalEstimatedPrice
-          };
-        });
-
-        if (fetched.length > 0) {
-          const merged = [...fetched];
-          this.sessions.forEach(local => {
-            if (!merged.some(f => f.id === local.id || (local.rawId && f.rawId === local.rawId))) {
-              merged.push(local);
-            }
-          });
-          this.sessions = merged;
-          this.save('rp_sessions', this.sessions);
-          this.notify();
+      // Map DB rows to the normalized local shape
+      const fetched = data.map(s => {
+        let snap = {};
+        if (typeof s.recommendation_snapshot === 'string') {
+          try { snap = JSON.parse(s.recommendation_snapshot); } catch {}
+        } else if (s.recommendation_snapshot && typeof s.recommendation_snapshot === 'object') {
+          snap = s.recommendation_snapshot;
         }
-      }
+
+        // Extract concerns from snapshot or joined session_concerns
+        let concerns = [];
+        if (snap.concerns && Array.isArray(snap.concerns) && snap.concerns.length > 0) {
+          concerns = snap.concerns.map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
+        } else if (s.session_concerns && Array.isArray(s.session_concerns) && s.session_concerns.length > 0) {
+          concerns = s.session_concerns.map(c => c.skin_problem_name).filter(Boolean);
+        }
+        if (concerns.length === 0) concerns = ['General Skincare'];
+
+        // Extract products from snapshot or joined session_products
+        let products = [];
+        if (snap.products && Array.isArray(snap.products) && snap.products.length > 0) {
+          products = snap.products;
+        } else if (s.session_products && Array.isArray(s.session_products) && s.session_products.length > 0) {
+          products = s.session_products.map(p => ({
+            name: p.product_name,
+            brand: p.brand,
+            category: p.category_name,
+            price: Number(p.price) || 0,
+            instruction: p.instruction || ''
+          }));
+        }
+
+        const totalEstimatedPrice = products.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+        const customerName = `${s.first_name || ''} ${s.surname || ''}`.trim()
+          || s.customer_name
+          || s.patient_name
+          || (snap.customer && `${snap.customer.firstName || ''} ${snap.customer.lastName || ''}`.trim())
+          || 'Walk-In Patient';
+
+        const skinType = s.selected_skin_type
+          || (snap.skinType && snap.skinType.name)
+          || 'Mountain Normal/Dry';
+
+        return {
+          id: s.id && s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : (s.id || 'SESSION'),
+          rawId: s.id,
+          customerName,
+          skinType,
+          concerns,
+          hasSevere: !!s.is_severe_flagged,
+          timestamp: s.created_at,
+          products,
+          matchedProductsCount: products.length,
+          totalEstimatedPrice
+        };
+      });
+
+      // CRITICAL FIX: Supabase is the single source of truth.
+      // Replace this.sessions with the authoritative DB list.
+      // Any locally-added sessions that are not yet in DB (just inserted this run)
+      // are kept ONLY if they aren't already represented in fetched rows.
+      const localOnlyPending = this.sessions.filter(local =>
+        !fetched.some(f =>
+          f.rawId === local.rawId ||
+          (local.rawId && f.rawId === local.rawId) ||
+          f.id === local.id
+        )
+      );
+
+      this.sessions = [...fetched, ...localOnlyPending];
+      this._sessionsFetchedFromSupabase = true;
+
+      // Sync back to localStorage so this device has the freshest cache
+      this.save('rp_sessions', this.sessions);
+      this.notify();
+
+      console.info(`[fetchSessions] Loaded ${fetched.length} sessions from Supabase${usedFallback ? ' (fallback mode)' : ''}. ${localOnlyPending.length} pending-local appended.`);
     } catch (e) {
-      console.warn('Sessions Supabase fetch note:', e.message || e);
+      console.warn('[fetchSessions] Supabase fetch error:', e.message || e);
+      // On error, keep existing cache — do NOT overwrite with empty
     }
   }
 
