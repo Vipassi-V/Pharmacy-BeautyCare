@@ -34,8 +34,13 @@ class AdminStore {
       requirePharmacistOverride: true
     });
 
-    this.sessions = this.load('rp_sessions', []);
-    this._sessionsFetchedFromSupabase = false; // true once we get a successful DB read
+    // Sessions start empty; fetchSessions() will replace this with the Supabase result.
+    // We do NOT pre-seed from localStorage because each device's localStorage cache
+    // diverges — it is a per-device artifact, not a shared source of truth.
+    // After a successful fetchSessions() call the result is written back to localStorage
+    // so it can be shown as a stale-while-revalidate placeholder on next load only.
+    this.sessions = [];
+    this._sessionsFetchedFromSupabase = false;
     this._realtimeChannel = null;
     this.activeModal = null;
     this.toast = null;
@@ -128,27 +133,27 @@ class AdminStore {
     }
   }
 
-  // --- Supabase Realtime: live session INSERT listener ---
+  // --- Supabase Realtime: live session changes listener ---
   subscribeToSessionsRealtime() {
     // Only one channel at a time
     if (this._realtimeChannel) return;
     try {
       this._realtimeChannel = supabase
-        .channel('sessions-inserts')
+        .channel('public-sessions-channel')
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'sessions' },
-          (_payload) => {
-            // A new session was inserted on any device — re-fetch to stay in sync
-            console.info('[Realtime] New session INSERT detected — refreshing sessions list.');
+          { event: '*', schema: 'public', table: 'sessions' },
+          (payload) => {
+            // A new session was inserted/updated on any device — re-fetch to stay in sync
+            console.info('[Realtime] sessions change detected — refreshing sessions list:', payload);
             this.fetchSessions();
           }
         )
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
-            console.info('[Realtime] sessions-inserts channel active.');
+            console.info('[Realtime] sessions realtime subscription active.');
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn('[Realtime] sessions-inserts channel error:', status);
+            console.warn('[Realtime] sessions channel error:', status);
             this._realtimeChannel = null;
           }
         });
@@ -1226,51 +1231,19 @@ class AdminStore {
 
   async fetchSessions() {
     try {
-      let data = null;
-      let usedFallback = false;
-
-      // 1. Attempt relational query with joined tables
+      // Supabase sessions table query (authoritative source)
       const res = await supabase
         .from('sessions')
-        .select(`
-          id,
-          first_name,
-          surname,
-          selected_skin_type,
-          is_severe_flagged,
-          recommendation_snapshot,
-          created_at,
-          session_concerns (
-            skin_problem_name,
-            is_severe
-          ),
-          session_products (
-            product_name,
-            brand,
-            category_name,
-            price,
-            instruction
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
         .limit(200);
 
       if (res.error) {
-        console.warn('[fetchSessions] Relational query failed, trying simple select:', res.error.message);
-        // 2. Fallback to direct sessions table select if joined tables have RLS limits
-        const fallbackRes = await supabase
-          .from('sessions')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(200);
-
-        if (fallbackRes.error) throw fallbackRes.error;
-        data = fallbackRes.data;
-        usedFallback = true;
-      } else {
-        data = res.data;
+        console.warn('[fetchSessions] Supabase fetch error:', res.error.message || res.error);
+        return;
       }
 
+      const data = res.data;
       if (!Array.isArray(data)) return;
 
       // Map DB rows to the normalized local shape
@@ -1282,39 +1255,31 @@ class AdminStore {
           snap = s.recommendation_snapshot;
         }
 
-        // Extract concerns from snapshot or joined session_concerns
         let concerns = [];
         if (snap.concerns && Array.isArray(snap.concerns) && snap.concerns.length > 0) {
           concerns = snap.concerns.map(c => typeof c === 'object' ? (c.name || c.title || c.id) : c);
-        } else if (s.session_concerns && Array.isArray(s.session_concerns) && s.session_concerns.length > 0) {
-          concerns = s.session_concerns.map(c => c.skin_problem_name).filter(Boolean);
         }
         if (concerns.length === 0) concerns = ['General Skincare'];
 
-        // Extract products from snapshot or joined session_products
         let products = [];
         if (snap.products && Array.isArray(snap.products) && snap.products.length > 0) {
-          products = snap.products;
-        } else if (s.session_products && Array.isArray(s.session_products) && s.session_products.length > 0) {
-          products = s.session_products.map(p => ({
-            name: p.product_name,
-            brand: p.brand,
-            category: p.category_name,
+          products = snap.products.map(p => ({
+            name: p.name || p.product_name || 'Product',
+            brand: p.brand || '',
+            category: p.category || p.category_name || 'Skincare',
             price: Number(p.price) || 0,
             instruction: p.instruction || ''
           }));
         }
 
         const totalEstimatedPrice = products.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-        const customerName = `${s.first_name || ''} ${s.surname || ''}`.trim()
-          || s.customer_name
-          || s.patient_name
-          || (snap.customer && `${snap.customer.firstName || ''} ${snap.customer.lastName || ''}`.trim())
-          || 'Walk-In Patient';
-
-        const skinType = s.selected_skin_type
-          || (snap.skinType && snap.skinType.name)
-          || 'Mountain Normal/Dry';
+        const customerName =
+          `${s.first_name || ''} ${s.surname || ''}`.trim() ||
+          s.customer_name || s.patient_name ||
+          (snap.customer && `${snap.customer.firstName || ''} ${snap.customer.lastName || ''}`.trim()) ||
+          'Walk-In Patient';
+        const skinType =
+          s.selected_skin_type || (snap.skinType && snap.skinType.name) || 'Mountain Normal/Dry';
 
         return {
           id: s.id && s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : (s.id || 'SESSION'),
@@ -1330,29 +1295,17 @@ class AdminStore {
         };
       });
 
-      // CRITICAL FIX: Supabase is the single source of truth.
-      // Replace this.sessions with the authoritative DB list.
-      // Any locally-added sessions that are not yet in DB (just inserted this run)
-      // are kept ONLY if they aren't already represented in fetched rows.
-      const localOnlyPending = this.sessions.filter(local =>
-        !fetched.some(f =>
-          f.rawId === local.rawId ||
-          (local.rawId && f.rawId === local.rawId) ||
-          f.id === local.id
-        )
-      );
-
-      this.sessions = [...fetched, ...localOnlyPending];
+      // Supabase is the single source of truth. Fully replace this.sessions.
+      this.sessions = fetched;
       this._sessionsFetchedFromSupabase = true;
 
-      // Sync back to localStorage so this device has the freshest cache
+      // Write authoritative list back to local cache
       this.save('rp_sessions', this.sessions);
       this.notify();
 
-      console.info(`[fetchSessions] Loaded ${fetched.length} sessions from Supabase${usedFallback ? ' (fallback mode)' : ''}. ${localOnlyPending.length} pending-local appended.`);
+      console.info(`[fetchSessions] Successfully loaded ${fetched.length} sessions from Supabase.`);
     } catch (e) {
-      console.warn('[fetchSessions] Supabase fetch error:', e.message || e);
-      // On error, keep existing cache — do NOT overwrite with empty
+      console.warn('[fetchSessions] Supabase fetch exception:', e.message || e);
     }
   }
 

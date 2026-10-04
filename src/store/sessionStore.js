@@ -3,6 +3,17 @@ import { skinTypes as mockSkinTypes, skinConcerns as mockConcerns, products as m
 import { supabase } from '../lib/supabaseClient.js';
 import { adminStore } from './adminStore.js';
 
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 class SessionStore {
   constructor() {
     this.reset();
@@ -23,7 +34,8 @@ class SessionStore {
     this.showQRModal = false;
     this.showEndSessionConfirmModal = false;
     this.isMobileView = false;
-    this.sessionId = 'RP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    this.rawSessionId = generateUUID();
+    this.sessionId = 'RP-' + this.rawSessionId.substring(0, 6).toUpperCase();
     this.createdAt = new Date().toISOString();
     this.isSavedToSupabase = false;
   }
@@ -373,10 +385,10 @@ class SessionStore {
     Object.values(grouped).forEach(g => {
       g.items.forEach(prod => {
         flattenedProducts.push({
-          product_id: prod.id && prod.id.length > 30 ? prod.id : null, // UUID check
+          product_id: (prod.id && prod.id.length > 30 && prod.id.includes('-')) ? prod.id : null,
           product_name: prod.name,
-          brand: prod.brand,
-          category_name: g.category.name,
+          brand: prod.brand || null,
+          category_name: g.category?.name || null,
           price: Number(prod.price) || 0,
           instruction: prod.instruction || '',
           display_order: displayOrder++
@@ -385,6 +397,10 @@ class SessionStore {
     });
 
     const recommendationSnapshot = {
+      customer: {
+        firstName: this.customer.firstName || '',
+        lastName: this.customer.lastName || ''
+      },
       skinType: skinType ? { id: skinType.id, name: skinType.name } : null,
       concerns: concerns.map(c => ({ id: c.id, name: c.title || c.name, isSevere: !!(c.isSevere || c.is_severe) })),
       products: flattenedProducts.map(p => ({
@@ -396,17 +412,21 @@ class SessionStore {
       }))
     };
 
+    const targetSessionId = this.rawSessionId || generateUUID();
+    this.rawSessionId = targetSessionId;
+
     const sessionPayload = {
+      id: targetSessionId,
       first_name: this.customer.firstName || 'Anonymous',
       surname: this.customer.lastName || 'Guest',
-      selected_skin_type: skinType ? skinType.name : 'Not Specified',
       is_severe_flagged: hasSevere,
-      recommendation_snapshot: recommendationSnapshot
+      recommendation_snapshot: recommendationSnapshot,
+      completed_at: new Date().toISOString()
     };
 
     const localSession = {
-      id: this.sessionId.length > 8 ? this.sessionId.substring(0, 8).toUpperCase() : this.sessionId,
-      rawId: this.sessionId,
+      id: this.sessionId || ('RP-' + targetSessionId.substring(0, 6).toUpperCase()),
+      rawId: targetSessionId,
       customerName: `${this.customer.firstName || ''} ${this.customer.lastName || ''}`.trim() || 'Walk-In Patient',
       skinType: skinType ? skinType.name : 'Mountain Normal/Dry',
       concerns: concerns.length > 0 ? concerns.map(c => c.title || c.name || c.id) : ['General Skincare'],
@@ -423,68 +443,60 @@ class SessionStore {
       totalEstimatedPrice: flattenedProducts.reduce((sum, p) => sum + (Number(p.price) || 0), 0)
     };
 
-    // Always register in local adminStore immediately so Reports & Consult views update without waiting or failing
+    // Optimistically update local session
     adminStore.addLocalSession(localSession);
 
     try {
-      // 1. Insert into sessions
-      let createdSessionId = null;
-      const { data: sessionData, error: sessionErr } = await supabase
+      // 1. Insert into sessions table
+      let { error: insertErr } = await supabase
         .from('sessions')
-        .insert([sessionPayload])
-        .select();
+        .insert([sessionPayload]);
 
-      if (!sessionErr && sessionData && sessionData.length > 0) {
-        createdSessionId = sessionData[0].id;
-      } else {
-        // Fallback: If .select() fails due to RLS read permissions, try plain insert
-        console.warn('Supabase session insert with .select() note:', sessionErr?.message, '— attempting plain insert');
-        const { error: plainErr } = await supabase
+      if (insertErr) {
+        // If inserting with client ID fails (e.g. strict RLS check or constraint), try without ID
+        console.warn('[saveSessionToSupabase] Direct insert with ID note:', insertErr.message, '— trying without pre-assigned ID');
+        const { id: _omitted, ...payloadWithoutId } = sessionPayload;
+        const fallbackRes = await supabase
           .from('sessions')
-          .insert([sessionPayload]);
-
-        if (plainErr) {
-          console.error('[saveSessionToSupabase] Supabase plain insert error:', plainErr.message || plainErr);
-        } else {
-          console.info('Session recorded in Supabase (plain insert mode).');
+          .insert([payloadWithoutId])
+          .select();
+        
+        if (fallbackRes.error) {
+          console.error('[saveSessionToSupabase] Fallback insert error:', fallbackRes.error.message || fallbackRes.error);
+        } else if (fallbackRes.data && fallbackRes.data[0]) {
+          localSession.rawId = fallbackRes.data[0].id;
+          localSession.id = fallbackRes.data[0].id.substring(0, 8).toUpperCase();
+          adminStore.addLocalSession(localSession);
         }
       }
 
-      if (createdSessionId) {
-        // Update local session with DB ID if needed
-        localSession.rawId = createdSessionId;
-        localSession.id = createdSessionId.length > 8 ? createdSessionId.substring(0, 8).toUpperCase() : createdSessionId;
-        adminStore.addLocalSession(localSession);
-
-        // 2. Insert session concerns
-        if (concerns.length > 0) {
-          const concernRows = concerns.map(c => ({
-            session_id: createdSessionId,
-            skin_problem_id: c.id && c.id.length > 30 ? c.id : null,
-            skin_problem_name: c.title || c.name,
-            is_severe: !!(c.isSevere || c.is_severe)
-          }));
-          await supabase.from('session_concerns').insert(concernRows).catch(e => console.warn('session_concerns insert note:', e));
-        }
-
-        // 3. Insert session products
-        if (flattenedProducts.length > 0) {
-          const productRows = flattenedProducts.map(p => ({
-            session_id: createdSessionId,
-            product_id: p.product_id,
-            product_name: p.product_name,
-            brand: p.brand,
-            category_name: p.category_name,
-            price: p.price,
-            instruction: p.instruction,
-            display_order: p.display_order
-          }));
-          await supabase.from('session_products').insert(productRows).catch(e => console.warn('session_products insert note:', e));
-        }
+      // 2. Insert session concerns junction rows (non-blocking)
+      if (concerns.length > 0) {
+        const concernRows = concerns.map(c => ({
+          session_id: localSession.rawId,
+          skin_problem_id: (c.id && c.id.length > 30 && c.id.includes('-')) ? c.id : null,
+          skin_problem_name: c.title || c.name || 'General Skincare',
+          is_severe: !!(c.isSevere || c.is_severe)
+        }));
+        await supabase.from('session_concerns').insert(concernRows).catch(e => console.warn('session_concerns insert note:', e));
       }
 
-      // Refresh admin sessions view from Supabase
-      adminStore.fetchSessions();
+      // 3. Insert session products junction rows (non-blocking)
+      if (flattenedProducts.length > 0) {
+        const productRows = flattenedProducts.map(p => ({
+          session_id: localSession.rawId,
+          product_id: (p.product_id && p.product_id.length > 30 && p.product_id.includes('-')) ? p.product_id : null,
+          product_name: p.product_name,
+          brand: p.brand,
+          category_name: p.category_name,
+          price: p.price,
+          display_order: p.display_order
+        }));
+        await supabase.from('session_products').insert(productRows).catch(e => console.warn('session_products insert note:', e));
+      }
+
+      // 4. Force refresh admin sessions from Supabase to sync authoritative state
+      await adminStore.fetchSessions();
     } catch (err) {
       console.warn('Session save exception:', err);
     }
