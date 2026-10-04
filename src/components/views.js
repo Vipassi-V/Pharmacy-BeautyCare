@@ -93,21 +93,13 @@ export function renderWelcomeScreen() {
         ${welcomeSubtitle}
       </p>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; text-align: left;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; text-align: left;">
         <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
           <div style="color: var(--secondary); margin-bottom: 0.5rem;">
             <span class="material-symbols-outlined" style="font-size: 26px;">verified_user</span>
           </div>
           <div class="font-label-md" style="color: var(--on-surface); margin-bottom: 0.25rem;">Pharmacist-Curated</div>
           <div class="font-body-sm" style="color: var(--on-surface-variant);">Clinically tested, safe OTC formulations.</div>
-        </div>
-
-        <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
-          <div style="color: var(--primary-container); margin-bottom: 0.5rem;">
-            <span class="material-symbols-outlined" style="font-size: 26px;">wb_sunny</span>
-          </div>
-          <div class="font-label-md" style="color: var(--on-surface); margin-bottom: 0.25rem;">Altitude-Aware UV Defense</div>
-          <div class="font-body-sm" style="color: var(--on-surface-variant);">Formulated for Palpa's high altitude & dry air.</div>
         </div>
 
         <div style="background: #ffffff; padding: 1.35rem; border-radius: var(--radius-lg); border: 1px solid #e2e8f0; box-shadow: var(--shadow-level-1);">
