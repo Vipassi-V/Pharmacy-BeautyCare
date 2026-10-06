@@ -268,30 +268,33 @@ class SessionStore {
       }
     } catch {}
 
-    // 2. Fetch from Supabase database sessions table if online
-    try {
-      const { data, error } = await supabase
-        .from('sessions')
-        .select('*')
-        .or(`id.eq.${sessionId},id.ilike.${sessionId}%`)
-        .maybeSingle();
+    // 2. Fetch from Supabase database sessions table if online and valid UUID
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId);
+    if (isUUID) {
+      try {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .maybeSingle();
 
-      if (data && data.recommendation_snapshot) {
-        const snap = data.recommendation_snapshot;
-        this.customer = {
-          firstName: data.first_name || this.customer.firstName || 'Patient',
-          lastName: data.surname || this.customer.lastName || ''
-        };
-        if (snap.concerns && Array.isArray(snap.concerns) && this.selectedConcernIds.length === 0) {
-          this.selectedConcernIds = snap.concerns.map(c => c.id).filter(Boolean);
+        if (data && data.recommendation_snapshot) {
+          const snap = data.recommendation_snapshot;
+          this.customer = {
+            firstName: data.first_name || this.customer.firstName || 'Patient',
+            lastName: data.surname || this.customer.lastName || ''
+          };
+          if (snap.concerns && Array.isArray(snap.concerns) && this.selectedConcernIds.length === 0) {
+            this.selectedConcernIds = snap.concerns.map(c => c.id).filter(Boolean);
+          }
+          if (snap.skinType && snap.skinType.id && !this.selectedSkinTypeId) {
+            this.selectedSkinTypeId = snap.skinType.id;
+          }
+          this.notify();
         }
-        if (snap.skinType && snap.skinType.id && !this.selectedSkinTypeId) {
-          this.selectedSkinTypeId = snap.skinType.id;
-        }
-        this.notify();
+      } catch (err) {
+        console.warn('Error loading session from Supabase:', err);
       }
-    } catch (err) {
-      console.warn('Error loading session from Supabase:', err);
     }
   }
 
@@ -368,8 +371,6 @@ class SessionStore {
     return grouped;
   }
 
-
-
   // Persist completed consultation session to Supabase
   async saveSessionToSupabase() {
     if (this.isSavedToSupabase) return;
@@ -386,11 +387,11 @@ class SessionStore {
       g.items.forEach(prod => {
         flattenedProducts.push({
           product_id: (prod.id && prod.id.length > 30 && prod.id.includes('-')) ? prod.id : null,
-          product_name: prod.name,
-          brand: prod.brand || null,
-          category_name: g.category?.name || null,
-          price: Number(prod.price) || 0,
-          instruction: prod.instruction || '',
+          product_name: (prod.name || 'Skincare Product').trim(),
+          brand: (prod.brand || 'Ronit Pharmacy').trim(),
+          category_name: (g.category?.name || 'Skincare').trim(),
+          price: Number(prod.price) >= 0 ? Number(prod.price) : 0,
+          instruction: (prod.instruction || 'Apply as directed by pharmacist.').trim(),
           display_order: displayOrder++
         });
       });
@@ -415,10 +416,21 @@ class SessionStore {
     const targetSessionId = this.rawSessionId || generateUUID();
     this.rawSessionId = targetSessionId;
 
+    // Database check constraint: CHECK (selected_skin_type = ANY (ARRAY['Dry', 'Oily', 'Combination', 'Normal', 'Sensitive', 'Not sure']))
+    const skinTypeMapping = {
+      oily: 'Oily',
+      dry: 'Dry',
+      combination: 'Combination',
+      sensitive: 'Sensitive',
+      normal: 'Normal'
+    };
+    const dbSkinType = skinTypeMapping[this.selectedSkinTypeId] || 'Not sure';
+
     const sessionPayload = {
       id: targetSessionId,
-      first_name: this.customer.firstName || 'Anonymous',
-      surname: this.customer.lastName || 'Guest',
+      first_name: (this.customer.firstName || '').trim() || 'Walk-In',
+      surname: (this.customer.lastName || '').trim() || 'Patient',
+      selected_skin_type: dbSkinType,
       is_severe_flagged: hasSevere,
       recommendation_snapshot: recommendationSnapshot,
       completed_at: new Date().toISOString()
@@ -427,8 +439,8 @@ class SessionStore {
     const localSession = {
       id: this.sessionId || ('RP-' + targetSessionId.substring(0, 6).toUpperCase()),
       rawId: targetSessionId,
-      customerName: `${this.customer.firstName || ''} ${this.customer.lastName || ''}`.trim() || 'Walk-In Patient',
-      skinType: skinType ? skinType.name : 'Mountain Normal/Dry',
+      customerName: `${(this.customer.firstName || '').trim()} ${(this.customer.lastName || '').trim()}`.trim() || 'Walk-In Patient',
+      skinType: skinType ? skinType.name : dbSkinType,
       concerns: concerns.length > 0 ? concerns.map(c => c.title || c.name || c.id) : ['General Skincare'],
       hasSevere: hasSevere,
       timestamp: new Date().toISOString(),
@@ -453,8 +465,7 @@ class SessionStore {
         .insert([sessionPayload]);
 
       if (insertErr) {
-        // If inserting with client ID fails (e.g. strict RLS check or constraint), try without ID
-        console.warn('[saveSessionToSupabase] Direct insert with ID note:', insertErr.message, '— trying without pre-assigned ID');
+        console.warn('[saveSessionToSupabase] Direct insert note:', insertErr.message || insertErr, '— trying fallback without pre-assigned ID');
         const { id: _omitted, ...payloadWithoutId } = sessionPayload;
         const fallbackRes = await supabase
           .from('sessions')
@@ -475,7 +486,7 @@ class SessionStore {
         const concernRows = concerns.map(c => ({
           session_id: localSession.rawId,
           skin_problem_id: (c.id && c.id.length > 30 && c.id.includes('-')) ? c.id : null,
-          skin_problem_name: c.title || c.name || 'General Skincare',
+          skin_problem_name: (c.title || c.name || 'General Skincare').trim(),
           is_severe: !!(c.isSevere || c.is_severe)
         }));
         await supabase.from('session_concerns').insert(concernRows).catch(e => console.warn('session_concerns insert note:', e));
@@ -486,11 +497,12 @@ class SessionStore {
         const productRows = flattenedProducts.map(p => ({
           session_id: localSession.rawId,
           product_id: (p.product_id && p.product_id.length > 30 && p.product_id.includes('-')) ? p.product_id : null,
-          product_name: p.product_name,
-          brand: p.brand,
-          category_name: p.category_name,
-          price: p.price,
-          display_order: p.display_order
+          product_name: (p.product_name || 'Skincare Product').trim(),
+          brand: (p.brand || 'Ronit Pharmacy').trim(),
+          category_name: (p.category_name || 'Skincare').trim(),
+          price: Number(p.price) >= 0 ? Number(p.price) : 0,
+          instruction: (p.instruction || 'Apply as directed by pharmacist.').trim(),
+          display_order: p.display_order || 0
         }));
         await supabase.from('session_products').insert(productRows).catch(e => console.warn('session_products insert note:', e));
       }

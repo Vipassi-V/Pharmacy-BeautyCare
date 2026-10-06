@@ -1211,6 +1211,20 @@ function bindAdminEvents() {
     adminStore.setTab('reports');
   });
 
+  document.getElementById('dashSeeAllSessionsBtn')?.addEventListener('click', () => {
+    adminStore.setTab('reports');
+  });
+
+  document.getElementById('dashRefreshSessionsBtn')?.addEventListener('click', async () => {
+    await adminStore.fetchSessions();
+    adminStore.showToast('Consultation sessions refreshed from database.', 'success');
+  });
+
+  document.getElementById('reportsRefreshSessionsBtn')?.addEventListener('click', async () => {
+    await adminStore.fetchSessions();
+    adminStore.showToast('Consultation sessions refreshed from database.', 'success');
+  });
+
   // --- Reports Events ---
   document.getElementById('exportReportsCsvBtn')?.addEventListener('click', () => {
     const sessions = adminStore.sessions || [];
